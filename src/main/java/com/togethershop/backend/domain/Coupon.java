@@ -1,11 +1,7 @@
 package com.togethershop.backend.domain;
 
-import com.togethershop.backend.domain.Business;
-import com.togethershop.backend.domain.CouponStatus;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,28 +10,54 @@ import java.time.LocalDateTime;
 @Table(name = "coupons")
 @Getter @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Coupon {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "coupon_id")
+    private Long couponId;
 
-    @Column(unique = true)
-    private String couponCode;
+    @Column(name = "template_id", nullable = false)
+    private Long templateId;  // 쿠폰 템플릿 ID
+
+    @Column(name = "customer_id", nullable = false)
+    private Long customerId;  // 쿠폰 소유 고객 ID
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id")
-    private Business business;
+    @JoinColumn(name = "business_id", nullable = false)
+    private Businesses businesses;  // 쿠폰 발급 사업자
 
-    private LocalDateTime issuedAt;
-    private LocalDateTime expiredAt;
-    private LocalDateTime usedAt;
+    @Column(name = "coupon_code", unique = true)
+    private String couponCode;
+
+    @Column(name = "jti_token", unique = true, nullable = false, length = 500)
+    private String jtiToken;  // JWT JTI 토큰 (보안용)
+
+    @Column(name = "qr_code_data", columnDefinition = "TEXT")
+    private String qrCodeData;  // QR 코드 데이터
+
+    @Column(name = "pin_code", length = 10)
+    private String pinCode;  // 쿠폰 PIN 코드
+
+    @Column(name = "issue_date", columnDefinition = "timestamp default CURRENT_TIMESTAMP")
+    private LocalDateTime issueDate;  // 쿠폰 발급 일시
+
+    @Column(name = "expire_date", nullable = false)
+    private LocalDateTime expireDate;  // 쿠폰 만료 일시
+
+    @Column(name = "used_date")
+    private LocalDateTime usedDate;  // 쿠폰 사용 일시
+
+    @Column(name = "used_business_id")
+    private Long usedBusinessId;  // 쿠폰 사용 사업자 ID
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status", columnDefinition = "enum('ISSUED','USED','EXPIRED','CANCELLED') default 'ISSUED'")
     private CouponStatus status;
 
-    private BigDecimal minimumOrderAmount;
 
-    @Column(unique = true, nullable = false)
-    private String jwtJti;
+
+
 }

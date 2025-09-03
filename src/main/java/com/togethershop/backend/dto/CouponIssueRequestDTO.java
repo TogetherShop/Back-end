@@ -10,8 +10,7 @@ import java.time.LocalDateTime;
 @Getter @Setter
 @NoArgsConstructor
 public class CouponIssueRequestDTO {
-    private Long storeId;
+    private Long businessId;
     private String couponCode;
-    private LocalDateTime expiredAt;
-    private BigDecimal minimumOrderAmount;
+    private LocalDateTime expiredDate;
 }

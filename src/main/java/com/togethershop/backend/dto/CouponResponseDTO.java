@@ -10,11 +10,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CouponResponseDTO {
     private String couponCode;
-    private Long storeId;
+    private Long business_id;
     private String storeName;
-    private LocalDateTime issuedAt;
-    private LocalDateTime expiredAt;
-    private LocalDateTime usedAt;
+    private LocalDateTime issuedDate;
+    private LocalDateTime expiredDate;
+    private LocalDateTime usedDate;
     private String status;
-    private BigDecimal minimumOrderAmount;
 }
