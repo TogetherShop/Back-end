@@ -24,11 +24,11 @@ public class ChatRoom {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requester_id", nullable = false)
-    private ShopUser requester; // 요청자
+    private Business requester; // 요청자
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recipient_id", nullable = false)
-    private ShopUser recipient; // 수신자
+    private Business recipient; // 수신자
 
     @Enumerated(EnumType.STRING)
     private ChatStatus status = ChatStatus.WAITING;

@@ -22,7 +22,7 @@ public class RefreshToken {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private ShopUser user;
+    private Business user;
 
     private Date expiryDate;
 

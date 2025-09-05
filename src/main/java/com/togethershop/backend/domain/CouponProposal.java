@@ -1,5 +1,6 @@
 package com.togethershop.backend.domain;
 
+import com.togethershop.backend.dto.DiscountType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,22 +18,35 @@ import java.time.LocalDateTime;
 public class CouponProposal {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "template_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id")
     private ChatRoom room;
 
-    private Long proposerId; // 제안자
+    @Column(name = "business_id", nullable = false)
+    private Long businessId; // 제안자
 
     // 제안 조건 (예시 필드)
-    private Integer discountPercent; // 할인율(%) 예: 20
+    @Column(name = "discount_value", nullable = false)
+    private Long discountValue; // 할인율(%) 예: 20
     private Integer totalQuantity;   // 발급 수량
     private LocalDate startDate;
     private LocalDate endDate;
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+    @Column(name = "terms_and_conditions", columnDefinition = "TEXT")
+    private String termsAndConditions;
 
     private boolean acceptedByRequester;
     private boolean acceptedByRecipient;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+    @Column(name = "is_active")
+    private Boolean isActive;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "discount_type", nullable = false, length = 20)
+    private DiscountType discountType;
 }
