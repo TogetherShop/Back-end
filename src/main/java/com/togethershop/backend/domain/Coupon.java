@@ -1,14 +1,15 @@
 package com.togethershop.backend.domain;
 
+import com.togethershop.backend.dto.CouponStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "coupons")
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -56,8 +57,6 @@ public class Coupon {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", columnDefinition = "enum('ISSUED','USED','EXPIRED','CANCELLED') default 'ISSUED'")
     private CouponStatus status;
-
-
 
 
 }
