@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
-    Page<ChatMessage> findByRoomRoomIdOrderByCreatedAtAsc(String roomId, Pageable pageable);
+    Page<ChatMessage> findByRoomRoomIdOrderBySentAtAsc(String roomId, Pageable pageable);
 
     Page<ChatMessage> findByRoom(ChatRoom room, Pageable pageable);
 

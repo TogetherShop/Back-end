@@ -23,26 +23,26 @@ public class CouponService {
 
         Coupon proposerCoupon = Coupon.builder()
                 .couponCode("CPN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .discountPercent((Integer) proposerCouponMap.get("discountPercent"))
-                .totalQuantity((Integer) proposerCouponMap.get("totalQuantity"))
-                .startDate(LocalDate.parse((String) proposerCouponMap.get("startDate")))
-                .endDate(LocalDate.parse((String) proposerCouponMap.get("endDate")))
+                .discountPercent((Long) proposerCouponMap.get("discountPercent"))
+                .totalQuantity((Long) proposerCouponMap.get("totalQuantity"))
+                .issueDate(LocalDate.parse((String) proposerCouponMap.get("startDate")))
+                .expireDate(LocalDate.parse((String) proposerCouponMap.get("endDate")))
                 .itemName((String) proposerCouponMap.get("itemName"))
                 .issuedAt(LocalDateTime.now())
                 .roomId(Long.parseLong(roomId))  // 필요하면 Long 변환
-                .ownerId(proposerId)
+                .businessId(proposerId)
                 .build();
 
         Coupon accepterCoupon = Coupon.builder()
                 .couponCode("CPN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .discountPercent((Integer) recipientCouponMap.get("discountPercent"))
-                .totalQuantity((Integer) recipientCouponMap.get("totalQuantity"))
-                .startDate(LocalDate.parse((String) recipientCouponMap.get("startDate")))
-                .endDate(LocalDate.parse((String) recipientCouponMap.get("endDate")))
+                .discountPercent((Long) recipientCouponMap.get("discountPercent"))
+                .totalQuantity((Long) recipientCouponMap.get("totalQuantity"))
+                .issueDate(LocalDate.parse((String) recipientCouponMap.get("startDate")))
+                .expireDate(LocalDate.parse((String) recipientCouponMap.get("endDate")))
                 .itemName((String) recipientCouponMap.get("itemName"))
                 .issuedAt(LocalDateTime.now())
                 .roomId(Long.parseLong(roomId))
-                .ownerId(accepterId)
+                .businessId(accepterId)
                 .build();
 
         couponRepo.save(proposerCoupon);

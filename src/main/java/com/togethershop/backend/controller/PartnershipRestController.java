@@ -1,8 +1,8 @@
 package com.togethershop.backend.controller;
 
+import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.ChatMessage;
 import com.togethershop.backend.domain.ChatRoom;
-import com.togethershop.backend.domain.ShopUser;
 import com.togethershop.backend.dto.ChatHistoryResponseDTO;
 import com.togethershop.backend.dto.ChatMessageResponseDTO;
 import com.togethershop.backend.dto.MessageType;
@@ -90,7 +90,7 @@ public class PartnershipRestController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         Long userId = userDetails.getUserId();
-        ShopUser user = userRepo.findById(userId)
+        Business user = userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
         List<ChatRoom> rooms = roomRepo.findByRequesterIdOrRecipientIdOrderByCreatedAtDesc(
@@ -104,8 +104,8 @@ public class PartnershipRestController {
             map.put("createdAt", r.getCreatedAt());
 
             boolean isRequester = r.getRequester().getId().equals(user.getId());
-            ShopUser otherUser = isRequester ? r.getRecipient() : r.getRequester();
-            map.put("otherShop", otherUser.getShopName());
+            Business otherUser = isRequester ? r.getRecipient() : r.getRequester();
+            map.put("otherShop", otherUser.getBusinessName());
             map.put("otherUserId", otherUser.getId());
             map.put("role", isRequester ? "REQUESTER" : "RECIPIENT");
             return map;
@@ -130,13 +130,13 @@ public class PartnershipRestController {
             return ResponseEntity.status(403).build();
         }
 
-        Page<ChatMessage> msgs = messageRepo.findByRoomRoomIdOrderByCreatedAtAsc(
+        Page<ChatMessage> msgs = messageRepo.findByRoomRoomIdOrderBySentAtAsc(
                 roomId, PageRequest.of(page, size));
 
         List<ChatMessageResponseDTO> result = msgs.getContent().stream().map(m -> {
             String senderName = (m.getSenderId() != null)
                     ? userRepo.findById(m.getSenderId())
-                    .map(ShopUser::getUsername)
+                    .map(Business::getUsername)
                     .orElse("UNKNOWN")
                     : "SYSTEM";
 
@@ -146,7 +146,7 @@ public class PartnershipRestController {
                     .senderId(m.getSenderId())
                     .senderName(senderName)
                     .content(m.getContent())
-                    .createdAt(m.getCreatedAt()); // Instant → LocalDateTime
+                    .createdAt(m.getSentAt()); // Instant → LocalDateTime
 
             // ✅ PARTNERSHIP_REQUEST일 때 payload 채워서 프론트 조건부 렌더링 지원
             if (m.getType() == MessageType.PARTNERSHIP_REQUEST) {
@@ -193,7 +193,7 @@ public class PartnershipRestController {
         }
 
         boolean isRequester = room.getRequester().getId().equals(userId);
-        ShopUser otherUser = isRequester ? room.getRecipient() : room.getRequester();
+        Business otherUser = isRequester ? room.getRecipient() : room.getRequester();
 
         return ResponseEntity.ok(Map.of(
                 "roomId", room.getRoomId(),
@@ -205,7 +205,7 @@ public class PartnershipRestController {
                 "otherUser", Map.of(
                         "id", otherUser.getId(),
                         "username", otherUser.getUsername(),
-                        "shopName", otherUser.getShopName()
+                        "shopName", otherUser.getBusinessName()
                 )
         ));
     }

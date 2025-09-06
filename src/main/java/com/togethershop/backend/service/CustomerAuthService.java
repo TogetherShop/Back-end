@@ -1,16 +1,14 @@
 package com.togethershop.backend.service;
 
-import com.togethershop.backend.domain.Business;
-import com.togethershop.backend.domain.BusinessRefreshToken;
+import com.togethershop.backend.domain.Customer;
+import com.togethershop.backend.domain.CustomerRefreshToken;
 import com.togethershop.backend.dto.AccountStatus;
-import com.togethershop.backend.dto.SignupRequestDTO;
-import com.togethershop.backend.dto.VerificationStatus;
-import com.togethershop.backend.repository.RefreshTokenRepository;
-import com.togethershop.backend.repository.ShopUserRepository;
+import com.togethershop.backend.dto.CustomerSignupRequestDTO;
+import com.togethershop.backend.repository.CustomerRefreshTokenRepository;
+import com.togethershop.backend.repository.CustomerRepository;
 import com.togethershop.backend.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,74 +21,69 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class CustomerAuthService {
 
-    private final ShopUserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final CustomerRepository customerRepository;
+    private final CustomerRefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
-    public Business signup(SignupRequestDTO req) {
-        // 아이디 중복 체크
-        if (userRepository.findByUsername(req.getUsername()).isPresent()) {
+    public Customer signup(CustomerSignupRequestDTO dto) {
+        if (customerRepository.findByUsername(dto.getUsername()).isPresent()) {
             throw new IllegalArgumentException("이미 존재하는 사용자입니다.");
         }
 
-        Business user = Business.builder()
-                .username(req.getUsername())
-                .email(req.getEmail())
-                .password(passwordEncoder.encode(req.getPassword())) // password_hash에 저장
-                .businessName(req.getBusinessName())
-                .businessRegistrationNumber(req.getBusinessRegistrationNumber())
-                .businessType(req.getBusinessType())
-                .businessCategory(req.getBusinessCategory())
-                .collaborationCategory(req.getCollaborationCategory())
-                .verificationStatus(VerificationStatus.PENDING)
+        Customer customer = Customer.builder()
+                .name(dto.getName())
+                .username(dto.getUsername())
+                .email(dto.getEmail())
+                .passwordHash(passwordEncoder.encode(dto.getPassword()))
+                .birth(dto.getBirth())
                 .status(AccountStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return userRepository.save(user);
+        return customerRepository.save(customer);
     }
-
 
     @Transactional
     public Map<String, Object> login(String username, String rawPassword) {
-        Business user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자 없음"));
+        Customer customer = customerRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
 
-        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+        if (!passwordEncoder.matches(rawPassword, customer.getPasswordHash())) {
             throw new BadCredentialsException("비밀번호 불일치");
         }
 
-        refreshTokenRepository.deleteByUser(user);
-        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
-        String refreshTokenValue = jwtTokenProvider.createRefreshToken();
+        refreshTokenRepository.deleteByCustomer(customer);
 
-        // refresh token 만료시간을 JWT claim에서 읽음
+        String accessToken = jwtTokenProvider.createAccessToken(customer.getId(), "CUSTOMER");
+        String refreshTokenValue = jwtTokenProvider.createRefreshToken();
         Date refreshExp = jwtTokenProvider.getClaims(refreshTokenValue).getExpiration();
 
-
-        BusinessRefreshToken businessRefreshToken = BusinessRefreshToken.builder()
+        CustomerRefreshToken customerRefreshToken = CustomerRefreshToken.builder()
                 .token(refreshTokenValue)
-                .user(user)
+                .customer(customer)
                 .expiryDate(refreshExp)
                 .revoked(false)
                 .build();
-        refreshTokenRepository.save(businessRefreshToken);
+
+        refreshTokenRepository.save(customerRefreshToken);
 
         Map<String, Object> result = new HashMap<>();
         result.put("accessToken", accessToken);
         result.put("refreshToken", refreshTokenValue);
-        result.put("accessTokenExpiresIn", Instant.now().plusMillis(jwtTokenProvider.getClaims(accessToken).getExpiration().getTime() - new Date().getTime()));
+        result.put("accessTokenExpiresIn",
+                Instant.now().plusMillis(jwtTokenProvider.getClaims(accessToken).getExpiration().getTime() - new Date().getTime())
+        );
         return result;
     }
 
     @Transactional
     public Map<String, Object> refresh(String providedRefreshToken) {
-        BusinessRefreshToken stored = refreshTokenRepository.findByToken(providedRefreshToken)
+        CustomerRefreshToken stored = refreshTokenRepository.findByToken(providedRefreshToken)
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 리프레시 토큰"));
 
         if (stored.isRevoked()) throw new IllegalArgumentException("리프레시 토큰이 취소됨");
@@ -99,18 +92,17 @@ public class AuthService {
             throw new IllegalArgumentException("리프레시 토큰 만료");
         }
 
-        Business user = stored.getUser();
+        Customer customer = stored.getCustomer();
 
-        // rotate: 새 refresh token 발급, 기존 토큰 삭제(또는 마크)
         refreshTokenRepository.delete(stored);
 
-        String newAccessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
+        String newAccessToken = jwtTokenProvider.createAccessToken(customer.getId(), "CUSTOMER");
         String newRefreshTokenValue = jwtTokenProvider.createRefreshToken();
         Date newRefreshExp = jwtTokenProvider.getClaims(newRefreshTokenValue).getExpiration();
 
-        BusinessRefreshToken newRefresh = BusinessRefreshToken.builder()
+        CustomerRefreshToken newRefresh = CustomerRefreshToken.builder()
                 .token(newRefreshTokenValue)
-                .user(user)
+                .customer(customer)
                 .expiryDate(newRefreshExp)
                 .revoked(false)
                 .build();
@@ -128,9 +120,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void logoutByUser(Business user) {
-        refreshTokenRepository.deleteByUser(user);
+    public void logoutByCustomer(Customer customer) {
+        refreshTokenRepository.deleteByCustomer(customer);
     }
 }
-
-

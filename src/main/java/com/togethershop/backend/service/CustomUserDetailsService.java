@@ -1,7 +1,7 @@
 package com.togethershop.backend.service;
 
 
-import com.togethershop.backend.domain.ShopUser;
+import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.repository.ShopUserRepository;
 import com.togethershop.backend.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        ShopUser user = userRepo.findByUsername(username)
+        Business user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException(username + " not found"));
 
         return CustomUserDetails.builder()
@@ -32,7 +32,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     // JWT 토큰에서 userId 기반으로 직접 로딩하고 싶다면 아래 메서드도 추가
     public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
-        ShopUser user = userRepo.findById(userId)
+        Business user = userRepo.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
 
         return CustomUserDetails.builder()

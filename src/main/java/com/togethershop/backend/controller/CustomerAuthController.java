@@ -1,10 +1,10 @@
 package com.togethershop.backend.controller;
 
-import com.togethershop.backend.domain.Business;
-import com.togethershop.backend.dto.LoginRequestDTO;
-import com.togethershop.backend.dto.SignupRequestDTO;
-import com.togethershop.backend.repository.ShopUserRepository;
-import com.togethershop.backend.service.AuthService;
+import com.togethershop.backend.domain.Customer;
+import com.togethershop.backend.dto.CustomerLoginRequestDTO;
+import com.togethershop.backend.dto.CustomerSignupRequestDTO;
+import com.togethershop.backend.repository.CustomerRepository;
+import com.togethershop.backend.service.CustomerAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,40 +16,34 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/customer/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class CustomerAuthController {
 
-    private final AuthService authService;
-    private final ShopUserRepository userRepository;
+    private final CustomerAuthService authService;
+    private final CustomerRepository customerRepository;
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody SignupRequestDTO req) {
+    public ResponseEntity<?> signup(@RequestBody CustomerSignupRequestDTO dto) {
         try {
-            // DTO 전체를 서비스에 전달
-            Business u = authService.signup(req);
+            Customer customer = authService.signup(dto);
             return ResponseEntity.ok(Map.of(
-                    "id", u.getId(),
-                    "username", u.getUsername(),
-                    "email", u.getEmail(),
-                    "businessName", u.getBusinessName(),
-                    "businessRegistrationNumber", u.getBusinessRegistrationNumber(),
-                    "businessType", u.getBusinessType(),
-                    "businessCategory", u.getBusinessCategory(),
-                    "collaborationCategory", u.getCollaborationCategory(),
-                    "status", u.getStatus(),
-                    "verificationStatus", u.getVerificationStatus()
+                    "id", customer.getId(),
+                    "username", customer.getUsername(),
+                    "email", customer.getEmail(),
+                    "name", customer.getName(),
+                    "birth", customer.getBirth(),
+                    "status", customer.getStatus()
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
-
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDTO req) {
+    public ResponseEntity<?> login(@RequestBody CustomerLoginRequestDTO dto) {
         try {
-            Map<String, Object> tokens = authService.login(req.getUsername(), req.getPassword());
+            Map<String, Object> tokens = authService.login(dto.getUsername(), dto.getPassword());
             return ResponseEntity.ok(tokens);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
@@ -73,6 +67,4 @@ public class AuthController {
         if (refresh != null) authService.logoutByRefreshToken(refresh);
         return ResponseEntity.ok(Map.of("result", "ok"));
     }
-
 }
-

@@ -2,10 +2,10 @@ package com.togethershop.backend.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.ChatMessage;
 import com.togethershop.backend.domain.ChatRoom;
 import com.togethershop.backend.domain.CouponProposal;
-import com.togethershop.backend.domain.ShopUser;
 import com.togethershop.backend.dto.ChatMessageDTO;
 import com.togethershop.backend.dto.CouponDTO;
 import com.togethershop.backend.dto.MessageType;
@@ -46,14 +46,14 @@ public class ChatService {
     @Transactional
     public ChatMessage sendTextMessage(String roomId, String senderUsername, String text) {
         ChatRoom room = roomRepo.findByRoomId(roomId).orElseThrow(IllegalArgumentException::new);
-        ShopUser sender = userRepo.findByUsername(senderUsername).orElseThrow(IllegalArgumentException::new);
+        Business sender = userRepo.findByUsername(senderUsername).orElseThrow(IllegalArgumentException::new);
 
         ChatMessage msg = ChatMessage.builder()
                 .room(room)
                 .senderId(sender.getId())
                 .type(MessageType.TEXT)
                 .content(text)
-                .createdAt(LocalDateTime.now())
+                .sentAt(LocalDateTime.now())
                 .build();
         msg = messageRepo.save(msg);
 
@@ -65,7 +65,7 @@ public class ChatService {
     public ChatMessageDTO save(ChatMessageDTO dto) throws JsonProcessingException {
         ChatRoom room = roomRepo.findByRoomId(dto.getRoomId())
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
-        ShopUser sender = userRepo.findByUsername(dto.getSenderName())
+        Business sender = userRepo.findByUsername(dto.getSenderName())
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
 
         ChatMessage msg;
@@ -76,7 +76,7 @@ public class ChatService {
                     .senderId(sender.getId())
                     .type(MessageType.TEXT)
                     .content(dto.getContent())
-                    .createdAt(dto.getCreatedAt() != null ? dto.getCreatedAt() : LocalDateTime.now())
+                    .sentAt(dto.getCreatedAt() != null ? dto.getCreatedAt() : LocalDateTime.now())
                     .build();
 
             msg = messageRepo.save(msg);
@@ -90,15 +90,15 @@ public class ChatService {
             ObjectMapper mapper = new ObjectMapper();
             Map<String, Object> proposalData = mapper.readValue(dto.getContent(), Map.class);
 
-            Integer discountPercent = (Integer) proposalData.get("discountPercent");
+            Long discountPercent = (Long) proposalData.get("discountPercent");
             Integer totalQty = (Integer) proposalData.get("totalQuantity");
             LocalDate start = LocalDate.parse((String) proposalData.get("startDate"));
             LocalDate end = LocalDate.parse((String) proposalData.get("endDate"));
 
             CouponProposal proposal = CouponProposal.builder()
                     .room(room)
-                    .proposerId(sender.getId())
-                    .discountPercent(discountPercent)
+                    .businessId(sender.getId())
+                    .discountValue(discountPercent)
                     .totalQuantity(totalQty)
                     .startDate(start)
                     .endDate(end)
@@ -114,7 +114,7 @@ public class ChatService {
                     .senderId(sender.getId())
                     .type(MessageType.COUPON_PROPOSAL)
                     .content(dto.getContent())
-                    .createdAt(LocalDateTime.now())
+                    .sentAt(LocalDateTime.now())
                     .build();
             messageRepo.save(msg);
 
@@ -122,7 +122,7 @@ public class ChatService {
             messagingTemplate.convertAndSend("/topic/room/" + room.getRoomId(), Map.of(
                     "type", "PROPOSAL",
                     "payload", proposalData,
-                    "createdAt", msg.getCreatedAt()
+                    "createdAt", msg.getSentAt()
             ));
         } else {
             throw new IllegalArgumentException("Unsupported message type: " + dto.getMessageType());
@@ -137,7 +137,7 @@ public class ChatService {
 
         ChatRoom room = roomRepo.findByRoomId(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found: " + roomId));
-        ShopUser sender = userRepo.findByUsername(senderUsername)
+        Business sender = userRepo.findByUsername(senderUsername)
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found: " + senderUsername));
 
         Map<String, Object> proposalPayload = Map.of(
@@ -264,21 +264,21 @@ public class ChatService {
 
     public Page<ChatMessageDTO> history(String roomId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<ChatMessage> result = messageRepo.findByRoomRoomIdOrderByCreatedAtAsc(roomId, pageable);
+        Page<ChatMessage> result = messageRepo.findByRoomRoomIdOrderBySentAtAsc(roomId, pageable);
         return result.map(this::convertToDTO);
     }
 
     private ChatMessageDTO convertToDTO(ChatMessage entity) {
-        ShopUser sender = userRepo.findById(entity.getSenderId())
+        Business sender = userRepo.findById(entity.getSenderId())
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
 
         ChatMessageDTO.ChatMessageDTOBuilder builder = ChatMessageDTO.builder()
                 .roomId(entity.getRoom().getRoomId())
                 .senderId(entity.getSenderId())
                 .senderName(sender.getUsername())
-                .shopName(sender.getShopName())
+                .shopName(sender.getBusinessName())
                 .messageType(entity.getType())
-                .createdAt(entity.getCreatedAt());
+                .createdAt(entity.getSentAt());
 
         // PROPOSAL 타입 메시지의 경우 payload 파싱
         if (entity.getType() == MessageType.COUPON_PROPOSAL) {
@@ -300,7 +300,7 @@ public class ChatService {
 
     // WebSocket 전송용 메시지 변환
     private Map<String, Object> messageToDto(ChatMessage m) {
-        ShopUser sender = userRepo.findById(m.getSenderId())
+        Business sender = userRepo.findById(m.getSenderId())
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
 
         Map<String, Object> result = new HashMap<>();
@@ -308,7 +308,7 @@ public class ChatService {
         result.put("type", m.getType().name());
         result.put("senderId", m.getSenderId());
         result.put("senderName", sender.getUsername());
-        result.put("createdAt", m.getCreatedAt());
+        result.put("createdAt", m.getSentAt());
         result.put("timestamp", System.currentTimeMillis());
 
         // PROPOSAL 타입의 경우 payload 추가

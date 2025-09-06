@@ -1,9 +1,10 @@
 package com.togethershop.backend.service;
 
+import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.ChatMessage;
 import com.togethershop.backend.domain.ChatRoom;
-import com.togethershop.backend.domain.ShopUser;
 import com.togethershop.backend.dto.ChatStatus;
+import com.togethershop.backend.dto.MessageDeliveryStatus;
 import com.togethershop.backend.dto.MessageType;
 import com.togethershop.backend.repository.ChatMessageRepository;
 import com.togethershop.backend.repository.ChatRoomRepository;
@@ -34,11 +35,12 @@ public class PartnershipService {
      */
     @Transactional
     public ChatRoom createRequest(Long requesterId, Long recipientId, String message) {
-        ShopUser requester = userRepo.findById(requesterId)
+        Business requester = userRepo.findById(requesterId)
                 .orElseThrow(() -> new IllegalArgumentException("요청자를 찾을 수 없습니다"));
-        ShopUser recipient = userRepo.findById(recipientId)
+        Business recipient = userRepo.findById(recipientId)
                 .orElseThrow(() -> new IllegalArgumentException("수신자를 찾을 수 없습니다"));
 
+        // 채팅방 생성
         ChatRoom room = ChatRoom.builder()
                 .roomId(UUID.randomUUID().toString())
                 .requester(requester)
@@ -48,13 +50,15 @@ public class PartnershipService {
                 .build();
         room = roomRepo.save(room);
 
-        // 메시지 DB 저장
+        // 메시지 생성 (deliveryStatus 기본값 처리)
         ChatMessage chatMessage = ChatMessage.builder()
                 .room(room)
                 .senderId(requester.getId())
+                .receiverBusinessId(recipient.getId())
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content(message)
-                .createdAt(LocalDateTime.now())
+                .deliveryStatus(MessageDeliveryStatus.SENT) // 반드시 기본값 넣기
+                .sentAt(LocalDateTime.now())
                 .build();
         messageRepo.save(chatMessage);
 
@@ -65,6 +69,7 @@ public class PartnershipService {
         return room;
     }
 
+
     /**
      * 요청 수락
      */
@@ -72,7 +77,7 @@ public class PartnershipService {
     public void acceptRequest(String roomId, Long shopId) {
         ChatRoom room = roomRepo.findByRoomId(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다"));
-        ShopUser user = userRepo.findById(shopId)
+        Business user = userRepo.findById(shopId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
 
         if (!room.getRecipient().getId().equals(user.getId())) {
@@ -82,18 +87,19 @@ public class PartnershipService {
         room.setStatus(ChatStatus.IN_NEGOTIATION);
         roomRepo.save(room);
 
-        // 메시지 DB 저장
-        ChatMessage sys = ChatMessage.builder()
+        ChatMessage sysMessage = ChatMessage.builder()
                 .room(room)
                 .senderId(user.getId())
+                .receiverBusinessId(room.getRequester().getId())
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content("요청이 수락되었습니다")
-                .createdAt(LocalDateTime.now())
+                .deliveryStatus(MessageDeliveryStatus.SENT)
+                .sentAt(LocalDateTime.now())
                 .build();
-        messageRepo.save(sys);
+        messageRepo.save(sysMessage);
 
         messagingTemplate.convertAndSend("/topic/room/" + roomId,
-                buildPartnershipMessage(sys, ChatStatus.ACCEPTED, null));
+                buildPartnershipMessage(sysMessage, ChatStatus.ACCEPTED, null));
     }
 
     /**
@@ -103,7 +109,7 @@ public class PartnershipService {
     public void rejectRequest(String roomId, String username, String reason) {
         ChatRoom room = roomRepo.findByRoomId(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다"));
-        ShopUser user = userRepo.findByUsername(username)
+        Business user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
 
         if (!room.getRecipient().getId().equals(user.getId())) {
@@ -113,17 +119,19 @@ public class PartnershipService {
         room.setStatus(ChatStatus.REJECTED);
         roomRepo.save(room);
 
-        ChatMessage sys = ChatMessage.builder()
+        ChatMessage sysMessage = ChatMessage.builder()
                 .room(room)
                 .senderId(user.getId())
+                .receiverBusinessId(room.getRequester().getId())
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content("요청이 거절되었습니다")
-                .createdAt(LocalDateTime.now())
+                .deliveryStatus(MessageDeliveryStatus.SENT)
+                .sentAt(LocalDateTime.now())
                 .build();
-        messageRepo.save(sys);
+        messageRepo.save(sysMessage);
 
         messagingTemplate.convertAndSend("/topic/room/" + roomId,
-                buildPartnershipMessage(sys, ChatStatus.REJECTED, reason));
+                buildPartnershipMessage(sysMessage, ChatStatus.REJECTED, reason));
     }
 
     @Transactional
@@ -134,18 +142,21 @@ public class PartnershipService {
         ChatMessage msg = ChatMessage.builder()
                 .room(room)
                 .senderId(senderId)
+                .receiverBusinessId(room.getRequester().getId().equals(senderId) ?
+                        room.getRecipient().getId() : room.getRequester().getId())
                 .type(MessageType.TEXT)
                 .content(content)
-                .createdAt(LocalDateTime.now())
+                .deliveryStatus(MessageDeliveryStatus.SENT)
+                .sentAt(LocalDateTime.now())
                 .build();
         messageRepo.save(msg);
 
         Map<String, Object> stompMessage = new HashMap<>();
-        long timestamp = msg.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        long timestamp = msg.getSentAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         stompMessage.put("id", msg.getId());
         stompMessage.put("type", "TEXT");
         stompMessage.put("senderId", senderId);
-        stompMessage.put("senderName", getUsernameById(senderId)); // 여기서 이름 넣음
+        stompMessage.put("senderName", getUsernameById(senderId));
         stompMessage.put("content", msg.getContent());
         stompMessage.put("createdAt", timestamp);
 
@@ -163,7 +174,7 @@ public class PartnershipService {
         payload.put("reason", reason);
 
         Map<String, Object> stompMessage = new HashMap<>();
-        LocalDateTime createdAt = msg.getCreatedAt(); // LocalDateTime
+        LocalDateTime createdAt = msg.getSentAt(); // LocalDateTime
         long epochMilli = createdAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         stompMessage.put("timestamp", epochMilli);
         stompMessage.put("type", "PARTNERSHIP_REQUEST");
@@ -174,6 +185,6 @@ public class PartnershipService {
     }
 
     private String getUsernameById(Long id) {
-        return userRepo.findById(id).map(ShopUser::getUsername).orElse("UNKNOWN");
+        return userRepo.findById(id).map(Business::getUsername).orElse("UNKNOWN");
     }
 }

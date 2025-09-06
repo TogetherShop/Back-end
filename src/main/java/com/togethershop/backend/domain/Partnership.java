@@ -22,7 +22,7 @@ public class Partnership {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "requester_business_id", nullable = false)
+    @JoinColumn(name = "business_id", nullable = false)
     private Business requester;
 
     @ManyToOne(fetch = FetchType.LAZY)

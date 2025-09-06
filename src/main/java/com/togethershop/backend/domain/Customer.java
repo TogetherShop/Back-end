@@ -1,7 +1,6 @@
 package com.togethershop.backend.domain;
 
 import com.togethershop.backend.dto.AccountStatus;
-import com.togethershop.backend.dto.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -34,18 +33,8 @@ public class Customer {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "phone_number", length = 20)
-    private String phoneNumber;
-
     @Column(name = "birth_date")
-    private LocalDate birthDate;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "gender", length = 10)
-    private Gender gender;
-
-    @Column(name = "push_token", length = 500)
-    private String pushToken;
+    private LocalDate birth;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -56,6 +45,5 @@ public class Customer {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
     private AccountStatus status;
-
 
 }

@@ -1,6 +1,6 @@
 package com.togethershop.backend.service;
 
-import com.togethershop.backend.domain.ShopUser;
+import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.repository.ShopUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,7 @@ public class ShopUserService {
     /**
      * 전체 사용자 조회 (로그인한 사용자 제외 가능)
      */
-    public List<ShopUser> findAllExcept(String username) {
+    public List<Business> findAllExcept(String username) {
         if (username == null) {
             return userRepository.findAll();
         }
@@ -28,7 +28,7 @@ public class ShopUserService {
     /**
      * 사용자 검색 (username 기준, 일부 문자열 검색)
      */
-    public List<ShopUser> searchByUsername(String query, String currentUsername) {
+    public List<Business> searchByUsername(String query, String currentUsername) {
         String lowerQuery = query.toLowerCase();
         return userRepository.findAll().stream()
                 .filter(u -> !u.getUsername().equals(currentUsername))
@@ -39,7 +39,7 @@ public class ShopUserService {
     /**
      * ID로 사용자 조회
      */
-    public ShopUser findById(Long id) {
+    public Business findById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
     }
