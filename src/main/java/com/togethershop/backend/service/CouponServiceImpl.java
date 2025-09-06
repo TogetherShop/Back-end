@@ -2,12 +2,11 @@ package com.togethershop.backend.service;
 
 import com.togethershop.backend.domain.Businesses;
 import com.togethershop.backend.domain.Coupon;
-import com.togethershop.backend.domain.CouponStatus;
 import com.togethershop.backend.dto.CouponIssueRequestDTO;
 import com.togethershop.backend.dto.CouponResponseDTO;
+import com.togethershop.backend.dto.CouponStatus;
 import com.togethershop.backend.repository.BusinessRepository;
 import com.togethershop.backend.repository.CouponRepository;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
