@@ -17,6 +17,7 @@ public class CouponTemplateDTO {
     private Long templateId;
     private BigDecimal discountValue;
     private Integer totalQuantity;
+    private Integer currentQuantity;
     private Integer maxUsePerCustomer;
     private Boolean isActive;
     private LocalDateTime createdAt;

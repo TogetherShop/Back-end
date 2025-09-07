@@ -112,6 +112,7 @@ public class CustomerCouponService {
                 .templateId(template.getTemplateId())
                 .discountValue(template.getDiscountValue())
                 .totalQuantity(template.getTotalQuantity())
+                .currentQuantity(template.getCurrentQuantity())
                 .maxUsePerCustomer(template.getMaxUsePerCustomer())
                 .isActive(template.getIsActive())
                 .createdAt(template.getCreatedAt())
@@ -200,6 +201,13 @@ public class CustomerCouponService {
                 .orElseThrow(() -> new IllegalArgumentException("Invalid coupon template id"));
 
         // 쿠폰 발급 조건 검증 예: maxIssueCount, maxUsePerCustomer, isActive 체크 추가 가능
+        // totalQuantity 검증 및 감소
+        Integer currentQuantity = template.getCurrentQuantity();
+        if (currentQuantity == null || currentQuantity <= 0) {
+            throw new IllegalStateException("Coupon template is out of stock");
+        }
+        template.setCurrentQuantity(currentQuantity - 1);
+        couponTemplateRepository.save(template);
 
         // 쿠폰 발급용 couponCode 및 JWT JTI 생성 (예시 UUID 활용)
         String couponCode = "CPN" + UUID.randomUUID().toString().replaceAll("-", "").substring(0, 10).toUpperCase();

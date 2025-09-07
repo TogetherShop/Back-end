@@ -26,6 +26,9 @@ public class CouponTemplate {
     @Column(name = "total_quantity")
     private Integer totalQuantity;
 
+    @Column(name = "current_quantity")
+    private Integer currentQuantity;
+
     @Column(name = "max_use_per_customer")
     private Integer maxUsePerCustomer;
 
