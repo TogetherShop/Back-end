@@ -3,6 +3,7 @@ package com.togethershop.backend.service;
 
 import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.Customer;
+import com.togethershop.backend.dto.BusinessSearchDTO;
 import com.togethershop.backend.dto.CustomerVisitPatternResponseDTO;
 import com.togethershop.backend.dto.RecommendedBusinessDTO;
 import com.togethershop.backend.dto.RelatedBusinessDTO;
@@ -151,6 +152,15 @@ public class CustomerRecommendationService {
                 .recentBusiness(recentBusinessDTO)
                 .relatedBusiness(relatedStores)
                 .build();
+    }
+
+
+    public List<BusinessSearchDTO> searchStores(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+
+        return businessRepository.searchByNameOrCategory(keyword.trim());
     }
 
 

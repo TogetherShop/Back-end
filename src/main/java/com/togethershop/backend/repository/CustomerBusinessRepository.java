@@ -1,6 +1,7 @@
 package com.togethershop.backend.repository;
 
 import com.togethershop.backend.domain.Business;
+import com.togethershop.backend.dto.BusinessSearchDTO;
 import com.togethershop.backend.dto.RecommendedBusinessDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -34,4 +35,25 @@ public interface CustomerBusinessRepository extends JpaRepository<Business, Long
                                                                        @Param("endDate") LocalDate endDate);
 
     Iterable<Long> id(Long id);
+
+    @Query("""
+        SELECT new com.togethershop.backend.dto.BusinessSearchDTO(
+            b.id,
+            b.businessName,
+            b.businessCategory,
+            b.address,
+            COALESCE(AVG(r.rating), 0),
+            CASE 
+                WHEN b.address LIKE 'http%' THEN '온라인'
+                ELSE '오프라인'
+            END
+        )
+        FROM Business b
+        LEFT JOIN Review r ON r.businessId = b.id AND r.status = 'ACTIVE'
+        WHERE LOWER(b.businessName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+           OR LOWER(b.businessCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        GROUP BY b.id, b.businessName, b.businessCategory, b.address
+    """)
+    List<BusinessSearchDTO> searchByNameOrCategory(@Param("keyword") String keyword);
+
 }

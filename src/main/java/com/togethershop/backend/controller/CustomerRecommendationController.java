@@ -1,6 +1,7 @@
 package com.togethershop.backend.controller;
 
 
+import com.togethershop.backend.dto.BusinessSearchDTO;
 import com.togethershop.backend.dto.CustomerVisitPatternResponseDTO;
 import com.togethershop.backend.dto.RecommendedBusinessDTO;
 import com.togethershop.backend.dto.RelatedBusinessDTO;
@@ -31,5 +32,11 @@ public class CustomerRecommendationController {
         Long customerId = user.getUserId();
         CustomerVisitPatternResponseDTO response = customerRecommendationService.getVisitPattern(customerId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<BusinessSearchDTO>> searchStores(@RequestParam("keyword") String keyword) {
+        List<BusinessSearchDTO> result = customerRecommendationService.searchStores(keyword);
+        return ResponseEntity.ok(result);
     }
 }
