@@ -142,21 +142,55 @@ public class CustomerCouponService {
 
 
     public List<CouponResponseDTO> getReceivedCoupons(Long customerId) {
+        // 1. 고객 쿠폰 조회 (status = ISSUED)
         List<Coupon> coupons = couponRepository.findByCustomerIdAndStatus(customerId, CouponStatus.ISSUED);
 
-        return coupons.stream().map(c -> CouponResponseDTO.builder()
-                        .couponId(c.getCouponId())
-                        .templateId(c.getTemplateId())
-                        .couponCode(c.getCouponCode())
-                        .qrCodeData(c.getQrCodeData())
-                        .pinCode(c.getPinCode())
-                        .issueDate(c.getIssueDate())
-                        .expireDate(c.getExpireDate())
-                        .usedDate(c.getUsedDate())
-                        .status(c.getStatus().name())
-                        .build())
+        if (coupons.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. coupon_template id 리스트 수집
+        Set<Long> templateIds = coupons.stream()
+                .map(Coupon::getTemplateId)
+                .collect(Collectors.toSet());
+
+        // 3. coupon_template 조회 (description 포함)
+        List<CouponTemplate> templates = couponTemplateRepository.findAllById(templateIds);
+        Map<Long, CouponTemplate> templateMap = templates.stream()
+                .collect(Collectors.toMap(CouponTemplate::getTemplateId, t -> t));
+
+        // 4. coupon_template 에서 참조하는 business_id 수집하여 business 조회
+        Set<Long> businessIds = templates.stream()
+                .map(CouponTemplate::getBusinessId)
+                .collect(Collectors.toSet());
+        List<Business> businesses = businessRepository.findAllById(businessIds);
+        Map<Long, Business> businessMap = businesses.stream()
+                .collect(Collectors.toMap(Business::getId, b -> b));
+
+        // 5. DTO 변환
+        return coupons.stream()
+                .map(c -> {
+                    CouponTemplate template = templateMap.get(c.getTemplateId());
+                    Business business = (template != null) ? businessMap.get(template.getBusinessId()) : null;
+
+                    return CouponResponseDTO.builder()
+                            .couponId(c.getCouponId())
+                            .templateId(c.getTemplateId())
+                            .couponCode(c.getCouponCode())
+                            .qrCodeData(c.getQrCodeData())
+                            .pinCode(c.getPinCode())
+                            .issueDate(c.getIssueDate())
+                            .expireDate(c.getExpireDate())
+                            .usedDate(c.getUsedDate())
+                            .status(c.getStatus().name())
+                            .description(template != null ? template.getDescription() : null)
+                            .businessName(business != null ? business.getBusinessName() : null)
+                            .businessCategory(business != null ? business.getBusinessCategory() : null)
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
+
 
 
     @Transactional

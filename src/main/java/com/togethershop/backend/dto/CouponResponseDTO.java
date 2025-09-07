@@ -19,4 +19,8 @@ public class CouponResponseDTO {
     private LocalDateTime expireDate;
     private LocalDateTime usedDate;
     private String status; // ISSUED, USED, EXPIRED, CANCELLED
+    private String description;       // coupon_template.description
+
+    private String businessName;      // business.business_name
+    private String businessCategory;  // business.business_category
 }
