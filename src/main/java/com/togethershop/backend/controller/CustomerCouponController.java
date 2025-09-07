@@ -1,9 +1,6 @@
 package com.togethershop.backend.controller;
 
-import com.togethershop.backend.dto.AvailableCouponsResponseDTO;
-import com.togethershop.backend.dto.BusinessWithPartnersCouponsDTO;
-import com.togethershop.backend.dto.CouponResponseDTO;
-import com.togethershop.backend.dto.CouponTemplateDTO;
+import com.togethershop.backend.dto.*;
 import com.togethershop.backend.security.CustomUserDetails;
 import com.togethershop.backend.service.CustomerCouponService;
 import lombok.RequiredArgsConstructor;
@@ -71,10 +68,11 @@ public class CustomerCouponController {
     }
 
     @GetMapping("/expiring")
-    public ResponseEntity<List<CouponResponseDTO>> getExpiringCoupons(
+    public ResponseEntity<List<ExpiringCouponDTO>> getExpiringCoupons(
             @AuthenticationPrincipal CustomUserDetails user,
-            @RequestParam int limit) {
-        List<CouponResponseDTO> coupons = customerCouponService.getExpiringCoupons(user.getUserId(), limit);
+            @RequestParam(value = "limit", defaultValue = "5") int limit) {
+        Long customerId = user.getUserId();
+        List<ExpiringCouponDTO> coupons = customerCouponService.getExpiringCoupons(customerId, limit);
         return ResponseEntity.ok(coupons);
     }
 }

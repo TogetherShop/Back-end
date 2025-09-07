@@ -21,7 +21,7 @@ public class CouponTemplate {
     private Long templateId;
 
     @Column(name = "discount_value", nullable = false)
-    private BigDecimal discountValue;
+    private Long discountValue;
 
     @Column(name = "total_quantity")
     private Integer totalQuantity;

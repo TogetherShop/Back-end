@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 public class CouponTemplateDTO {
     private Long templateId;
-    private BigDecimal discountValue;
+    private Long discountValue;
     private Integer totalQuantity;
     private Integer currentQuantity;
     private Integer maxUsePerCustomer;

@@ -5,9 +5,11 @@ import com.togethershop.backend.dto.*;
 import com.togethershop.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -299,23 +301,55 @@ public class CustomerCouponService {
                 .build();
     }
 
-    public List<CouponResponseDTO> getExpiringCoupons(Long customerId, int limit) {
-        List<Coupon> coupons = couponRepository.findExpiringCoupons(customerId);
+    public List<ExpiringCouponDTO> getExpiringCoupons(Long customerId, int limit) {
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Coupon> coupons = couponRepository.findExpiringCoupons(customerId, now, PageRequest.of(0, limit));
+
+        if (coupons.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> templateIds = coupons.stream()
+                .map(Coupon::getTemplateId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        List<CouponTemplate> templates = couponTemplateRepository.findAllById(templateIds);
+
+        var templateMap = templates.stream()
+                .collect(Collectors.toMap(CouponTemplate::getTemplateId, t -> t));
+
+        var businessIds = templates.stream()
+                .map(CouponTemplate::getBusinessId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        var businesses = businessRepository.findAllById(businessIds);
+
+        var businessMap = businesses.stream()
+                .collect(Collectors.toMap(Business::getId, b -> b));
 
         return coupons.stream()
-                .limit(limit)
-                .map(c -> CouponResponseDTO.builder()
-                        .couponId(c.getCouponId())
-                        .templateId(c.getTemplateId())
-                        .couponCode(c.getCouponCode())
-                        .qrCodeData(c.getQrCodeData())
-                        .pinCode(c.getPinCode())
-                        .issueDate(c.getIssueDate())
-                        .expireDate(c.getExpireDate())
-                        .usedDate(c.getUsedDate())
-                        .status(c.getStatus().name())
-                        .build())
+                .map(coupon -> {
+                    CouponTemplate template = templateMap.get(coupon.getTemplateId());
+                    Business business = template != null ? businessMap.get(template.getBusinessId()) : null;
+
+                    int daysLeft = (int) Duration.between(now, coupon.getExpireDate()).toDays();
+
+                    return ExpiringCouponDTO.builder()
+                            .couponId(coupon.getCouponId())
+                            .couponCode(coupon.getCouponCode())
+                            .expireDate(coupon.getExpireDate())
+                            .templateId(coupon.getTemplateId())
+                            .discountValue(template != null ? template.getDiscountValue() : null)
+                            .businessName(business != null ? business.getBusinessName() : null)
+                            .businessCategory(business != null ? business.getBusinessCategory() : null)
+                            .daysLeft(daysLeft)
+                            .build();
+                })
                 .collect(Collectors.toList());
+
     }
 
 
