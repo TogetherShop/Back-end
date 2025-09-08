@@ -47,9 +47,6 @@ public class Business {
 
     private String address;
 
-    @Column(name = "detailed_address")
-    private String detailedAddress;
-
     private Double latitude;
     private Double longitude;
 

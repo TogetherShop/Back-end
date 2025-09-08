@@ -30,6 +30,8 @@ public class CustomerCouponService {
 
     @Transactional(readOnly = true)
     public List<BusinessWithPartnersCouponsDTO> getAvailableCouponsGrouped(Long customerId) {
+        log.info("▶ 시작: 고객ID={} 최근 결제 매장 3곳 조회", customerId);
+
         // 1. 최근 결제 매장 3곳 조회
         List<PaymentHistory> payments = paymentHistoryRepository.findTop3ByCustomerIdOrderByPaymentDateDesc(customerId);
         List<Long> recentBusinessIds = payments.stream()
@@ -37,7 +39,10 @@ public class CustomerCouponService {
                 .distinct()
                 .collect(Collectors.toList());
 
+        log.info("최근 결제 매장 ID 리스트: {}", recentBusinessIds);
+
         if (recentBusinessIds.isEmpty()) {
+            log.info("최근 결제한 매장이 없습니다.");
             return Collections.emptyList();
         }
 
@@ -49,35 +54,62 @@ public class CustomerCouponService {
 
         // 2. 최근 매장별 제휴 및 쿠폰 조회
         for (Business business : recentBusinesses) {
+            log.info("▶ 처리 중 매장: {} (ID: {})", business.getBusinessName(), business.getId());
+
             // 본인이 requester 또는 partner로 속한 모든 제휴 조회
             List<Partnership> partnerships = partnershipRepository
                     .findByRequester_IdOrPartner_Id(business.getId(), business.getId());
 
+            log.info("  총 제휴 건수: {}", partnerships.size());
+
             List<PartnerCouponsDTO> partnerCouponsList = new ArrayList<>();
 
             for (Partnership partnership : partnerships) {
-                // 상대방 business 식별
-                Business partner = partnership.getRequester().getId().equals(business.getId())
-                        ? partnership.getPartner()
-                        : partnership.getRequester();
+                log.info("    제휴 partnershipId: {}", partnership.getPartnershipId());
+
+                Long partnerId = partnership.getRequester().getId().equals(business.getId())
+                        ? partnership.getPartner().getId()
+                        : partnership.getRequester().getId();
+
+                // 본인 매장은 건너뜀
+                if (recentBusinessIds.contains(partnerId)) continue;
+
+                // partnerBusinessId로 Business partner 조회 및 쿠폰템플릿 추출
+                Business partner = businessRepository.findById(partnerId).orElse(null);
+                if (partner == null) continue;
                 BusinessDTO partnerBusinessDTO = toBusinessDTO(partner);
 
                 // ChatRoom 조건: partnershipId + status="COMPLETED"
                 List<ChatRoom> chatRooms = chatRoomRepository
                         .findByPartnershipIdAndStatus(partnership.getPartnershipId(), ChatStatus.COMPLETED);
 
+                log.info("      chatRooms (COMPLETED) 개수: {}", chatRooms.size());
+
                 List<Long> roomIds = chatRooms.stream()
                         .map(ChatRoom::getId)
                         .collect(Collectors.toList());
-                if (roomIds.isEmpty()) continue;
+                if (roomIds.isEmpty()) {
+                    log.info("      유효한 chat room 없음, 다음 제휴로 이동");
+                    continue;
+                }
 
                 // 모든 룸의 쿠폰 템플릿(활성 조건 없음)
                 List<CouponTemplate> couponTemplates =
                         couponTemplateRepository.findByRoomIdIn(roomIds);
 
-                if (couponTemplates.isEmpty()) continue;
+                // 최근 방문한 매장 business_id인 쿠폰 제외
+                List<CouponTemplate> filteredCoupons = couponTemplates.stream()
+                        .filter(ct -> !recentBusinessIds.contains(ct.getBusinessId()))
+                        .collect(Collectors.toList());
 
-                List<CouponTemplateDTO> couponDTOs = couponTemplates.stream()
+                log.info("      필터링 된 쿠폰 템플릿 개수: {}", filteredCoupons.size());
+
+                if (filteredCoupons.isEmpty()) {
+                    log.info("      조건에 맞는 쿠폰 템플릿 없음, 다음 제휴로 이동");
+                    continue;
+                }
+
+                List<CouponTemplateDTO> couponDTOs = filteredCoupons.stream()
                         .map(template -> toCouponTemplateDTO(template, partner))
                         .collect(Collectors.toList());
 
@@ -86,10 +118,16 @@ public class CustomerCouponService {
 
             BusinessDTO businessDTO = toBusinessDTO(business);
             result.add(new BusinessWithPartnersCouponsDTO(businessDTO, partnerCouponsList));
+            log.info("  매장 ID {} 처리 완료, 파트너 쿠폰 개수: {}", business.getId(), partnerCouponsList.size());
         }
+
+        log.info("▶ 전체 처리 완료, 총 매장 수: {}, 총 파트너 쿠폰 그룹 수: {}",
+                result.size(),
+                result.stream().mapToInt(b -> b.getCouponsByPartners().size()).sum());
 
         return result;
     }
+
 
 
     private CouponTemplateDTO toCouponTemplateDTO(CouponTemplate template, Business business) {
