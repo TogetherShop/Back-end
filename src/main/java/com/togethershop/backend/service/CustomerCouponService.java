@@ -28,20 +28,16 @@ public class CustomerCouponService {
     private final PartnershipRepository partnershipRepository;
     private final CouponTemplateRepository couponTemplateRepository;
 
+    @Transactional(readOnly = true)
     public List<BusinessWithPartnersCouponsDTO> getAvailableCouponsGrouped(Long customerId) {
-        log.info("▶ 시작: 고객ID={} 최근 결제 매장 3곳 조회", customerId);
-
-        // 1. 최근 결제 매장 3개 조회
+        // 1. 최근 결제 매장 3곳 조회
         List<PaymentHistory> payments = paymentHistoryRepository.findTop3ByCustomerIdOrderByPaymentDateDesc(customerId);
         List<Long> recentBusinessIds = payments.stream()
                 .map(PaymentHistory::getBusinessId)
                 .distinct()
                 .collect(Collectors.toList());
 
-        log.info("최근 결제한 매장 ID 리스트: {}", recentBusinessIds);
-
         if (recentBusinessIds.isEmpty()) {
-            log.info("최근 결제한 매장이 없습니다.");
             return Collections.emptyList();
         }
 
@@ -51,51 +47,38 @@ public class CustomerCouponService {
 
         List<BusinessWithPartnersCouponsDTO> result = new ArrayList<>();
 
-        // 2. 매장별 제휴 및 쿠폰 조회
+        // 2. 최근 매장별 제휴 및 쿠폰 조회
         for (Business business : recentBusinesses) {
-            log.info("▶ 처리 중 매장: {} (ID: {})", business.getBusinessName(), business.getId());
-
-            List<Partnership> partnerships = partnershipRepository.findByRequester_IdAndStatus(business.getId(), PartnershipStatus.ACCEPTED);
-            log.info("  제휴 매장 수: {}", partnerships.size());
+            // 본인이 requester 또는 partner로 속한 모든 제휴 조회
+            List<Partnership> partnerships = partnershipRepository
+                    .findByRequester_IdOrPartner_Id(business.getId(), business.getId());
 
             List<PartnerCouponsDTO> partnerCouponsList = new ArrayList<>();
 
             for (Partnership partnership : partnerships) {
-                Long partnershipId = partnership.getPartnershipId();
-                log.info("    제휴 partnershipId: {}", partnershipId);
+                // 상대방 business 식별
+                Business partner = partnership.getRequester().getId().equals(business.getId())
+                        ? partnership.getPartner()
+                        : partnership.getRequester();
+                BusinessDTO partnerBusinessDTO = toBusinessDTO(partner);
 
-                List<ChatRoom> chatRooms = chatRoomRepository.findByPartnershipIdIn(Collections.singletonList(partnershipId));
-                log.info("      chatRooms 수: {}", chatRooms.size());
+                // ChatRoom 조건: partnershipId + status="COMPLETED"
+                List<ChatRoom> chatRooms = chatRoomRepository
+                        .findByPartnershipIdAndStatus(partnership.getPartnershipId(), ChatStatus.COMPLETED);
 
                 List<Long> roomIds = chatRooms.stream()
-                        .map(cr -> {
-                            try {
-                                return cr.getId();
-                            } catch (Exception e) {
-                                log.warn("      roomId 파싱 실패, roomId={}", cr.getRoomId());
-                                return null;
-                            }
-                        })
-                        .filter(Objects::nonNull)
+                        .map(ChatRoom::getId)
                         .collect(Collectors.toList());
+                if (roomIds.isEmpty()) continue;
 
-                if (roomIds.isEmpty()) {
-                    log.info("      유효한 roomId 없음, 다음 제휴로 이동");
-                    continue;
-                }
+                // 모든 룸의 쿠폰 템플릿(활성 조건 없음)
+                List<CouponTemplate> couponTemplates =
+                        couponTemplateRepository.findByRoomIdIn(roomIds);
 
-                List<CouponTemplate> couponTemplates = couponTemplateRepository.findByRoomIdInAndIsActive(roomIds, true);
-                log.info("      쿠폰 템플릿 수: {}", couponTemplates.size());
-
-                if (couponTemplates.isEmpty()) {
-                    continue;
-                }
-
-                Business partnerBusiness = businessMap.get(partnership.getPartner().getId());
-                BusinessDTO partnerBusinessDTO = toBusinessDTO(partnerBusiness);
+                if (couponTemplates.isEmpty()) continue;
 
                 List<CouponTemplateDTO> couponDTOs = couponTemplates.stream()
-                        .map(template -> toCouponTemplateDTO(template, partnerBusiness))
+                        .map(template -> toCouponTemplateDTO(template, partner))
                         .collect(Collectors.toList());
 
                 partnerCouponsList.add(new PartnerCouponsDTO(partnerBusinessDTO, couponDTOs));
@@ -105,9 +88,9 @@ public class CustomerCouponService {
             result.add(new BusinessWithPartnersCouponsDTO(businessDTO, partnerCouponsList));
         }
 
-        log.info("▶ 완료: 총 매장 수 {}, 총 응답 크기 {}", result.size(), result.stream().mapToInt(b -> b.getCouponsByPartners().size()).sum());
         return result;
     }
+
 
     private CouponTemplateDTO toCouponTemplateDTO(CouponTemplate template, Business business) {
         return CouponTemplateDTO.builder()
@@ -116,7 +99,6 @@ public class CustomerCouponService {
                 .totalQuantity(template.getTotalQuantity())
                 .currentQuantity(template.getCurrentQuantity())
                 .maxUsePerCustomer(template.getMaxUsePerCustomer())
-                .isActive(template.getIsActive())
                 .createdAt(template.getCreatedAt())
                 .roomId(template.getRoomId())
                 .businessId(template.getBusinessId())

@@ -29,10 +29,6 @@ public class Partnership {
     @JoinColumn(name = "partner_business_id", nullable = false)
     private Business partner;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PartnershipStatus status = PartnershipStatus.REQUESTED;
-
     @Column(name = "start_date")
     private LocalDate startDate;
 

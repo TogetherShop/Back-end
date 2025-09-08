@@ -32,9 +32,6 @@ public class CouponTemplate {
     @Column(name = "max_use_per_customer")
     private Integer maxUsePerCustomer;
 
-    @Column(name = "is_active")
-    private Boolean isActive;
-
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -7,9 +7,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface PartnershipRepository extends JpaRepository<Partnership, Long> {
-    List<Partnership> findByRequester_IdAndStatus(Long requesterId, PartnershipStatus status);
-    List<Partnership> findByPartner_IdAndStatus(Long partnerId, PartnershipStatus status);
-    // 맞춤설정: requesterBusinessId 필드명이 실제 엔티티에서 다르면 변경필요
-    List<Partnership> findByRequester_IdInAndStatus(List<Long> requesterBusinessIds, PartnershipStatus status);
 
+    // 특정 businessId가 requester 또는 partner인 모든 파트너십 조회
+    List<Partnership> findByRequester_IdOrPartner_Id(Long requesterId, Long partnerId);
+    // requester(연관관계)를 통해 검색
+    List<Partnership> findByRequester_Id(Long requesterId);
+
+    // partner(연관관계)를 통해 검색
+    List<Partnership> findByPartner_Id(Long partnerBusinessId);
+
+    // 여러 requester 대상으로 검색
+    List<Partnership> findByRequester_IdIn(List<Long> requesterIds);
+
+    // 여러 partner 대상으로 검색
+    List<Partnership> findByPartner_IdIn(List<Long> partnerIds);
 }
