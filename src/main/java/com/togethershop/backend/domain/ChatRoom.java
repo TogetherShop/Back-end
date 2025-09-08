@@ -34,7 +34,7 @@ public class ChatRoom {
     private ChatStatus status = ChatStatus.WAITING;
 
     private LocalDateTime createdAt;
-    private Long partnershipId; // 예: UUID
+    private Long partnershipId;
 
 }
 
