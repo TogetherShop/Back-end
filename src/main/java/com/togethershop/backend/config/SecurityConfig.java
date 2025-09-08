@@ -24,6 +24,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll().requestMatchers("/api/customer/auth/**").permitAll()
+                        .requestMatchers("/api/customer/**").authenticated() // 고객 API는 인증 필요
                         .requestMatchers("/ws-chat/**").permitAll()
                         .anyRequest().authenticated()
                 )

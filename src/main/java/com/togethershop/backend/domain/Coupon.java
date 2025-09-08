@@ -26,10 +26,6 @@ public class Coupon {
     @Column(name = "customer_id", nullable = false)
     private Long customerId;  // 쿠폰 소유 고객 ID
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "business_id", nullable = false)
-    private Businesses businesses;  // 쿠폰 발급 사업자
-
     @Column(name = "coupon_code", unique = true)
     private String couponCode;
 
@@ -51,8 +47,6 @@ public class Coupon {
     @Column(name = "used_date")
     private LocalDateTime usedDate;  // 쿠폰 사용 일시
 
-    @Column(name = "used_business_id")
-    private Long usedBusinessId;  // 쿠폰 사용 사업자 ID
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", columnDefinition = "enum('ISSUED','USED','EXPIRED','CANCELLED') default 'ISSUED'")

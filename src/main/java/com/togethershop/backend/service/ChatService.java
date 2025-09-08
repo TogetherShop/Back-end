@@ -36,7 +36,7 @@ public class ChatService {
     private final ChatMessageRepository messageRepo;
     private final ChatRoomRepository roomRepo;
     private final CouponProposalRepository proposalRepo;
-    private final CouponService couponService;
+    private final CustomerCouponService customerCouponService;
     private final SimpMessagingTemplate messagingTemplate;
     private final ShopUserRepository userRepo;
 
@@ -204,7 +204,7 @@ public class ChatService {
             log.info("제안 수락 처리 시작 - roomId={}, proposerId={}, accepterId={}", roomId, proposerId, accepterId);
 
             // 쿠폰 발급
-            couponService.issueMutualCoupons(roomId, proposerId, accepterId, proposalPayload);
+            customerCouponService.issueMutualCoupons(roomId, proposerId, accepterId, proposalPayload);
 
             // WebSocket 전송
             Map<String, Object> response = Map.of(

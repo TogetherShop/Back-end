@@ -19,7 +19,7 @@ public class Partnership {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "partnership_id")
-    private Long id;
+    private Long partnershipId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "business_id", nullable = false)
@@ -28,6 +28,7 @@ public class Partnership {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "partner_business_id", nullable = false)
     private Business partner;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PartnershipStatus status = PartnershipStatus.REQUESTED;

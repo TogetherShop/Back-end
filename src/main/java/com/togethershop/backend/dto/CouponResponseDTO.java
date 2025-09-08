@@ -1,19 +1,26 @@
 package com.togethershop.backend.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Getter
+@Data
+@NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class CouponResponseDTO {
+    private Long couponId;
+    private Long templateId;
     private String couponCode;
-    private Long business_id;
-    private String storeName;
-    private LocalDateTime issuedDate;
-    private LocalDateTime expiredDate;
+    private String qrCodeData;
+    private String pinCode;
+    private LocalDateTime issueDate;
+    private LocalDateTime expireDate;
     private LocalDateTime usedDate;
-    private String status;
+    private String status; // ISSUED, USED, EXPIRED, CANCELLED
+    private String description;       // coupon_template.description
+
+    private String businessName;      // business.business_name
+    private String businessCategory;  // business.business_category
 }
