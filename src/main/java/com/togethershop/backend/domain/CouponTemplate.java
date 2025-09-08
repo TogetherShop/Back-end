@@ -2,11 +2,10 @@ package com.togethershop.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
-
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-// CouponProposal.java
 @Entity
 @Table(name = "coupon_templates")
 @Getter
@@ -15,32 +14,49 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class CouponTemplate {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "template_id")
-    private Long id;
+    private Long templateId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_id")
-    private ChatRoom room;
-
-    @Column(name = "business_id", nullable = false)
-    private Long businessId; // 제안자
-
-    // 제안 조건 (예시 필드)
     @Column(name = "discount_value", nullable = false)
-    private Long discountValue; // 할인율(%) 예: 20
-    private Integer totalQuantity;   // 발급 수량
+    private Long discountValue;
+
+    @Column(name = "total_quantity")
+    private Integer totalQuantity;
+
+    @Column(name = "current_quantity")
+    private Integer currentQuantity;
+
+    @Column(name = "max_use_per_customer")
+    private Integer maxUsePerCustomer;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "room_id")
+    private Long roomId;
+
+    @Column(name = "business_id")
+    private Long businessId;
+
+    @Column(name = "start_date")
     private LocalDate startDate;
+
+    @Column(name = "end_date")
     private LocalDate endDate;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
     @Column(name = "terms_and_conditions", columnDefinition = "TEXT")
     private String termsAndConditions;
 
-    private boolean acceptedByRequester;
-    private boolean acceptedByRecipient;
+    @Column(name = "accepted_by_requester")
+    private Boolean acceptedByRequester;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "accepted_by_recipient")
+    private Boolean acceptedByRecipient;
+
 }
