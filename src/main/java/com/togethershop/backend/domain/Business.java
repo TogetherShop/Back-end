@@ -1,5 +1,6 @@
 package com.togethershop.backend.domain;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.togethershop.backend.dto.AccountStatus;
 import com.togethershop.backend.dto.VerificationStatus;
 import jakarta.persistence.*;
@@ -47,9 +48,6 @@ public class Business {
 
     private String address;
 
-    @Column(name = "detailed_address")
-    private String detailedAddress;
-
     private Double latitude;
     private Double longitude;
 
@@ -63,9 +61,13 @@ public class Business {
 
     @Column(name = "collaboration_category")
     private String collaborationCategory;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status")
     private VerificationStatus verificationStatus = VerificationStatus.PENDING;
+
+    @Column(name = "together_index")
+    private Double togetherIndex;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -77,8 +79,10 @@ public class Business {
     private AccountStatus status = AccountStatus.ACTIVE;
 
     @OneToMany(mappedBy = "requester", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Partnership> sentPartnerships;
 
     @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Partnership> receivedPartnerships;
 }

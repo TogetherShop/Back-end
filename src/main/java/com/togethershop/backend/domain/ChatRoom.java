@@ -30,6 +30,10 @@ public class ChatRoom {
     @JoinColumn(name = "recipient_id", nullable = false)
     private Business recipient; // 수신자
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partnership_id")
+    private Partnership partnership;
+
     @Enumerated(EnumType.STRING)
     private ChatStatus status = ChatStatus.WAITING;
 

@@ -1,60 +1,61 @@
 package com.togethershop.backend.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.togethershop.backend.domain.Business;
-import com.togethershop.backend.domain.ChatMessage;
-import com.togethershop.backend.domain.ChatRoom;
-import com.togethershop.backend.domain.CouponProposal;
-import com.togethershop.backend.dto.ChatMessageDTO;
-import com.togethershop.backend.dto.CouponDTO;
-import com.togethershop.backend.dto.MessageType;
-import com.togethershop.backend.repository.ChatMessageRepository;
-import com.togethershop.backend.repository.ChatRoomRepository;
-import com.togethershop.backend.repository.CouponProposalRepository;
-import com.togethershop.backend.repository.ShopUserRepository;
+import com.togethershop.backend.domain.*;
+import com.togethershop.backend.dto.*;
+import com.togethershop.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ChatService {
+
     private final ChatMessageRepository messageRepo;
     private final ChatRoomRepository roomRepo;
-    private final CouponProposalRepository proposalRepo;
+    private final CouponTemplateRepository templateRepo;
     private final CouponService couponService;
-    private final SimpMessagingTemplate messagingTemplate;
     private final ShopUserRepository userRepo;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final PartnershipRepository partnershipRepo;
+    private final ObjectMapper objectMapper;
+    private final RedisChatPublisher redisChatPublisher;
 
-    private final RedisTemplate<String, String> redisTemplate; // Redis 저장용
-    private final ObjectMapper objectMapper = new ObjectMapper(); // JSON 변환용
-
+    // 1️⃣ 일반 텍스트 메시지 전송
     @Transactional
-    public ChatMessage sendTextMessage(String roomId, String senderUsername, String text) {
-        ChatRoom room = roomRepo.findByRoomId(roomId).orElseThrow(IllegalArgumentException::new);
-        Business sender = userRepo.findByUsername(senderUsername).orElseThrow(IllegalArgumentException::new);
+    public ChatMessage sendTextMessage(String roomId, Long senderId, String text) {
+        ChatRoom room = roomRepo.findByRoomId(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+        Business sender = userRepo.findById(senderId)
+                .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
 
+        Partnership p = partnershipRepo.findByRequester_IdOrPartner_Id(room.getRequester().getId(), room.getRecipient().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Partnership not found"));
+        Business receiver = p.getRequester().getId().equals(sender.getId()) ? p.getPartner() : p.getRequester();
         ChatMessage msg = ChatMessage.builder()
                 .room(room)
                 .senderId(sender.getId())
+                .receiverBusinessId(receiver.getId())
+                .partnership(room.getPartnership())
                 .type(MessageType.TEXT)
                 .content(text)
+                .deliveryStatus(MessageDeliveryStatus.SENT)
                 .sentAt(LocalDateTime.now())
                 .build();
+
         msg = messageRepo.save(msg);
 
         messagingTemplate.convertAndSend("/topic/room/" + roomId, messageToDto(msg));
@@ -62,212 +63,163 @@ public class ChatService {
     }
 
     @Transactional
-    public ChatMessageDTO save(ChatMessageDTO dto) throws JsonProcessingException {
-        ChatRoom room = roomRepo.findByRoomId(dto.getRoomId())
+    public ChatMessageDTO proposeCoupon(String roomId, Long senderId, CouponTemplate couponTemplate) throws Exception {
+        ChatRoom room = roomRepo.findByRoomId(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
-        Business sender = userRepo.findByUsername(dto.getSenderName())
+
+        Business sender = userRepo.findById(senderId)
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
 
-        ChatMessage msg;
-        if (dto.getMessageType() == null || dto.getMessageType().equals(MessageType.TEXT)) {
-            // 일반 텍스트 메시지
-            msg = ChatMessage.builder()
-                    .room(room)
-                    .senderId(sender.getId())
-                    .type(MessageType.TEXT)
-                    .content(dto.getContent())
-                    .sentAt(dto.getCreatedAt() != null ? dto.getCreatedAt() : LocalDateTime.now())
-                    .build();
-
-            msg = messageRepo.save(msg);
-
-            // WebSocket 전송
-            messagingTemplate.convertAndSend("/topic/room/" + room.getRoomId(), messageToDto(msg));
-
-        } else if (dto.getMessageType().equals(MessageType.COUPON_PROPOSAL)) {
-            // 제안 메시지 처리
-            // DTO content에 JSON 형태로 discountPercent, totalQty, startDate, endDate 들어왔다고 가정
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, Object> proposalData = mapper.readValue(dto.getContent(), Map.class);
-
-            Long discountPercent = (Long) proposalData.get("discountPercent");
-            Integer totalQty = (Integer) proposalData.get("totalQuantity");
-            LocalDate start = LocalDate.parse((String) proposalData.get("startDate"));
-            LocalDate end = LocalDate.parse((String) proposalData.get("endDate"));
-
-            CouponProposal proposal = CouponProposal.builder()
-                    .room(room)
-                    .businessId(sender.getId())
-                    .discountValue(discountPercent)
-                    .totalQuantity(totalQty)
-                    .startDate(start)
-                    .endDate(end)
-                    .acceptedByRequester(false)
-                    .acceptedByRecipient(false)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            proposal = proposalRepo.save(proposal);
-
-            // 메시지 저장
-            msg = ChatMessage.builder()
-                    .room(room)
-                    .senderId(sender.getId())
-                    .type(MessageType.COUPON_PROPOSAL)
-                    .content(dto.getContent())
-                    .sentAt(LocalDateTime.now())
-                    .build();
-            messageRepo.save(msg);
-
-            // WebSocket 전송
-            messagingTemplate.convertAndSend("/topic/room/" + room.getRoomId(), Map.of(
-                    "type", "PROPOSAL",
-                    "payload", proposalData,
-                    "createdAt", msg.getSentAt()
-            ));
-        } else {
-            throw new IllegalArgumentException("Unsupported message type: " + dto.getMessageType());
+        if (couponTemplate == null) {
+            throw new IllegalArgumentException("proposerCoupon 정보가 필요합니다");
         }
 
-        return convertToDTO(msg);
-    }
+        // DB 저장
+        templateRepo.save(couponTemplate);
+        log.info("CouponTemplate 저장 완료, ID: {}", couponTemplate.getId());
 
-    @Transactional
-    public void proposeCoupon(String roomId, String senderUsername,
-                              CouponDTO proposerCoupon, CouponDTO recipientCoupon) throws JsonProcessingException {
+        // 프론트와 동일한 구조로 ProposalPayloadDTO 생성
+        ProposalPayloadDTO payload = new ProposalPayloadDTO();
+        payload.setRoomId(room.getRoomId());
+        payload.setProposerId(sender.getId());
 
-        ChatRoom room = roomRepo.findByRoomId(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("Room not found: " + roomId));
-        Business sender = userRepo.findByUsername(senderUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Sender not found: " + senderUsername));
+        // proposerCoupon 세팅
+        CouponDTO proposerPayload = new CouponDTO();
+        proposerPayload.setItemName(couponTemplate.getDescription());
+        proposerPayload.setDiscountValue(couponTemplate.getDiscountValue().intValue());
+        proposerPayload.setTotalQuantity(couponTemplate.getTotalQuantity());
+        proposerPayload.setStartDate(couponTemplate.getStartDate());
+        proposerPayload.setEndDate(couponTemplate.getEndDate());
+        payload.setProposerCoupon(proposerPayload);
 
-        Map<String, Object> proposalPayload = Map.of(
-                "roomId", roomId,
-                "proposerId", sender.getId(),
-                "proposerName", sender.getUsername(),
-                "createdAt", System.currentTimeMillis(),
-                "proposerCoupon", Map.of(
-                        "discountPercent", proposerCoupon.getDiscountPercent(),
-                        "totalQuantity", proposerCoupon.getTotalQuantity(),
-                        "startDate", proposerCoupon.getStartDate(),
-                        "endDate", proposerCoupon.getEndDate(),
-                        "itemName", proposerCoupon.getItemName()
-                ),
-                "recipientCoupon", Map.of(
-                        "discountPercent", recipientCoupon.getDiscountPercent(),
-                        "totalQuantity", recipientCoupon.getTotalQuantity(),
-                        "startDate", recipientCoupon.getStartDate(),
-                        "endDate", recipientCoupon.getEndDate(),
-                        "itemName", recipientCoupon.getItemName()
-                )
-        );
+        // recipientCoupon은 일단 같은 값으로 세팅 (필요 시 수정)
+        CouponDTO recipientPayload = new CouponDTO();
+        recipientPayload.setItemName(couponTemplate.getDescription());
+        recipientPayload.setDiscountValue(couponTemplate.getDiscountValue().intValue());
+        recipientPayload.setTotalQuantity(couponTemplate.getTotalQuantity());
+        recipientPayload.setStartDate(couponTemplate.getStartDate());
+        recipientPayload.setEndDate(couponTemplate.getEndDate());
+        payload.setRecipientCoupon(recipientPayload);
 
-        String key = "proposal:" + roomId;
-        String proposalJson = objectMapper.writeValueAsString(proposalPayload);
+        payload.setStatus("WAITING");
 
-        // 30분 후 자동 만료 설정
-        redisTemplate.opsForValue().set(key, proposalJson, Duration.ofMinutes(30));
+        // 메시지 생성
+        ChatMessage msg = ChatMessage.builder()
+                .room(room)
+                .senderId(sender.getId())
+                .type(MessageType.COUPON_PROPOSAL)
+                .partnership(room.getPartnership())
+                .content(objectMapper.writeValueAsString(payload)) // JSON 저장
+                .deliveryStatus(MessageDeliveryStatus.SENT)
+                .receiverBusinessId(room.getRecipient().getId())
+                .sentAt(LocalDateTime.now())
+                .build();
 
-        // WebSocket 전송
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, Map.of(
-                "type", "PROPOSAL",
-                "payload", proposalPayload,
-                "timestamp", System.currentTimeMillis(),
-                "expiresAt", System.currentTimeMillis() + Duration.ofMinutes(30).toMillis()
+        messageRepo.save(msg);
+
+        ChatMessageDTO chatMessageDTO = convertToDTO(msg);
+
+        // 보낸 사람 (버튼 없음)
+        messagingTemplate.convertAndSendToUser(sender.getUsername(), "/topic/room", Map.of(
+                "message", chatMessageDTO,
+                "showActionButtons", false
         ));
 
-        log.info("쿠폰 제안 저장 및 전송 완료 - roomId={}, proposerId={}, expiresIn=30min",
-                roomId, sender.getId());
+        // 받는 사람 (버튼 있음)
+        String recipientUsername = room.getPartnership().getPartner().getUsername();
+        messagingTemplate.convertAndSendToUser(recipientUsername, "/topic/room", Map.of(
+                "message", chatMessageDTO,
+                "showActionButtons", true
+        ));
+
+        redisChatPublisher.publish(chatMessageDTO);
+
+        return chatMessageDTO;
     }
 
+
+    // 3️⃣ 제안 수락
     @Transactional
-    public void acceptProposal(String roomId, Long accepterId) throws JsonProcessingException {
-        String key = "proposal:" + roomId;
+    public void acceptProposal(Long proposalId, Long accepterId) throws Exception {
+        CouponTemplate proposal = templateRepo.findById(proposalId)
+                .orElseThrow(() -> new IllegalArgumentException("Proposal not found"));
 
-        // 원자적으로 가져오고 삭제 (GETDEL 명령어 사용)
-        String proposalJson = redisTemplate.opsForValue().getAndDelete(key);
-
-        if (proposalJson == null) {
-            log.warn("제안을 찾을 수 없거나 이미 처리됨 - roomId={}, accepterId={}", roomId, accepterId);
-            throw new IllegalArgumentException("Proposal not found or already processed for roomId=" + roomId);
+        if (proposal.getBusinessId().equals(accepterId)) {
+            throw new IllegalArgumentException("Cannot accept your own proposal");
         }
 
-        try {
-            Map<String, Object> proposalPayload = objectMapper.readValue(proposalJson, Map.class);
-            Long proposerId = Long.valueOf(proposalPayload.get("proposerId").toString());
+        proposal.setAcceptedByRecipient(true);
+        templateRepo.save(proposal);
 
-            // 자신의 제안은 수락할 수 없음
-            if (proposerId.equals(accepterId)) {
-                log.warn("자신의 제안 수락 시도 - roomId={}, userId={}", roomId, accepterId);
-                throw new IllegalArgumentException("Cannot accept your own proposal");
-            }
+        // 쿠폰 발급
+        CouponIssueRequestDTO dto = CouponIssueRequestDTO.builder()
+                .businessId(proposal.getBusinessId())
+                .couponCode("AUTO_" + UUID.randomUUID())
+                .expiredDate(proposal.getEndDate().atStartOfDay())
+                .build();
+        couponService.issueCoupon(dto);
 
-            log.info("제안 수락 처리 시작 - roomId={}, proposerId={}, accepterId={}", roomId, proposerId, accepterId);
-
-            // 쿠폰 발급
-            couponService.issueMutualCoupons(roomId, proposerId, accepterId, proposalPayload);
-
-            // WebSocket 전송
-            Map<String, Object> response = Map.of(
-                    "type", "PROPOSAL_ACCEPTED",
-                    "payload", proposalPayload,
-                    "acceptedBy", accepterId,
-                    "timestamp", System.currentTimeMillis()
-            );
-
-            messagingTemplate.convertAndSend("/topic/room/" + roomId, response);
-
-            log.info("제안 수락 완료 - roomId={}, proposerId={}, accepterId={}", roomId, proposerId, accepterId);
-
-        } catch (JsonProcessingException e) {
-            log.error("제안 데이터 파싱 실패 - roomId={}", roomId, e);
-            throw new IllegalArgumentException("Invalid proposal data format");
-        } catch (Exception e) {
-            log.error("제안 수락 처리 중 오류 - roomId={}, accepterId={}", roomId, accepterId, e);
-            throw e;
-        }
+        messagingTemplate.convertAndSend("/topic/room/" + proposal.getRoom().getRoomId(), Map.of(
+                "type", "PROPOSAL_ACCEPTED",
+                "proposalId", proposalId,
+                "acceptedBy", accepterId,
+                "timestamp", System.currentTimeMillis()
+        ));
     }
 
+    // 4️⃣ 제안 거절
     @Transactional
-    public void rejectProposal(String roomId, Long rejecterId, String reason) {
-        String key = "proposal:" + roomId;
+    public void rejectProposal(Long proposalId, Long rejecterId, String reason) {
+        CouponTemplate proposal = templateRepo.findById(proposalId)
+                .orElseThrow(() -> new IllegalArgumentException("Proposal not found"));
 
-        // 원자적으로 가져오고 삭제
-        String proposalJson = redisTemplate.opsForValue().getAndDelete(key);
 
-        if (proposalJson == null) {
-            log.warn("거절할 제안을 찾을 수 없음 - roomId={}, rejecterId={}", roomId, rejecterId);
-            throw new IllegalArgumentException("Proposal not found or already processed for roomId=" + roomId);
-        }
+        templateRepo.save(proposal);
 
-        try {
-            Map<String, Object> proposalPayload = objectMapper.readValue(proposalJson, Map.class);
-            Long proposerId = Long.valueOf(proposalPayload.get("proposerId").toString());
-
-            // WebSocket 전송
-            Map<String, Object> response = Map.of(
-                    "type", "PROPOSAL_REJECTED",
-                    "proposerId", proposerId,
-                    "rejectedBy", rejecterId,
-                    "reason", reason != null ? reason : "사유 없음",
-                    "timestamp", System.currentTimeMillis()
-            );
-
-            messagingTemplate.convertAndSend("/topic/room/" + roomId, response);
-
-            log.info("제안 거절 완료 - roomId={}, proposerId={}, rejecterId={}", roomId, proposerId, rejecterId);
-
-        } catch (JsonProcessingException e) {
-            log.error("제안 데이터 파싱 실패 - roomId={}", roomId, e);
-            // 이미 삭제했으므로 로그만 남김
-        }
+        messagingTemplate.convertAndSend("/topic/room/" + proposal.getRoom().getRoomId(), Map.of(
+                "type", "PROPOSAL_REJECTED",
+                "proposalId", proposalId,
+                "rejectedBy", rejecterId,
+                "reason", reason != null ? reason : "사유 없음",
+                "timestamp", System.currentTimeMillis()
+        ));
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> propose(String roomId) {
+        ChatRoom room = roomRepo.findByRoomId(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+
+        // 해당 방의 활성 쿠폰 제안 조회
+        List<CouponTemplate> activeProposals = templateRepo.findByRoom(room);
+
+        List<Map<String, Object>> proposals = activeProposals.stream().map(p -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("proposalId", p.getId());
+            map.put("description", p.getDescription());
+            map.put("discountValue", p.getDiscountValue());
+            map.put("totalQuantity", p.getTotalQuantity());
+            map.put("startDate", p.getStartDate());
+            map.put("endDate", p.getEndDate());
+            map.put("acceptedByRequester", p.isAcceptedByRequester());
+            map.put("acceptedByRecipient", p.isAcceptedByRecipient());
+            return map;
+        }).toList();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("roomId", roomId);
+        result.put("proposals", proposals);
+        return result;
+    }
+
+    // 5️⃣ 채팅 히스토리 조회
     public Page<ChatMessageDTO> history(String roomId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<ChatMessage> result = messageRepo.findByRoomRoomIdOrderBySentAtAsc(roomId, pageable);
         return result.map(this::convertToDTO);
     }
 
+    // DTO 변환
     private ChatMessageDTO convertToDTO(ChatMessage entity) {
         Business sender = userRepo.findById(entity.getSenderId())
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
@@ -276,19 +228,17 @@ public class ChatService {
                 .roomId(entity.getRoom().getRoomId())
                 .senderId(entity.getSenderId())
                 .senderName(sender.getUsername())
-                .shopName(sender.getBusinessName())
-                .messageType(entity.getType())
-                .createdAt(entity.getSentAt());
+                .businessName(sender.getBusinessName())
+                .type(entity.getType())
+                .timestamp(entity.getSentAt());
 
-        // PROPOSAL 타입 메시지의 경우 payload 파싱
         if (entity.getType() == MessageType.COUPON_PROPOSAL) {
             try {
-                // content에 저장된 JSON을 Map으로 파싱
-                Map<String, Object> payload = objectMapper.readValue(entity.getContent(), Map.class);
-                builder.content("쿠폰 교환 제안")  // 사용자 친화적인 메시지
-                        .payload(payload);  // payload 설정
-            } catch (JsonProcessingException e) {
-                log.error("PROPOSAL 메시지 payload 파싱 실패: {}", entity.getContent(), e);
+                // ✅ JSON → ProposalPayloadDTO로 변환
+                ProposalPayloadDTO payload = objectMapper.readValue(entity.getContent(), ProposalPayloadDTO.class);
+                builder.content("쿠폰 교환 제안")
+                        .payload(payload);
+            } catch (Exception e) {
                 builder.content("쿠폰 교환 제안 (파싱 오류)");
             }
         } else {
@@ -298,7 +248,7 @@ public class ChatService {
         return builder.build();
     }
 
-    // WebSocket 전송용 메시지 변환
+
     private Map<String, Object> messageToDto(ChatMessage m) {
         Business sender = userRepo.findById(m.getSenderId())
                 .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
@@ -311,14 +261,12 @@ public class ChatService {
         result.put("createdAt", m.getSentAt());
         result.put("timestamp", System.currentTimeMillis());
 
-        // PROPOSAL 타입의 경우 payload 추가
         if (m.getType() == MessageType.COUPON_PROPOSAL) {
             try {
                 Map<String, Object> payload = objectMapper.readValue(m.getContent(), Map.class);
                 result.put("content", "쿠폰 교환 제안");
                 result.put("payload", payload);
-            } catch (JsonProcessingException e) {
-                log.error("PROPOSAL 메시지 payload 파싱 실패", e);
+            } catch (Exception e) {
                 result.put("content", "쿠폰 교환 제안 (파싱 오류)");
             }
         } else {
@@ -326,36 +274,5 @@ public class ChatService {
         }
 
         return result;
-    }
-
-    public Map<String, Object> getProposalStatus(String roomId) {
-        String key = "proposal:" + roomId;
-        String proposalJson = redisTemplate.opsForValue().get(key);
-
-        if (proposalJson == null) {
-            return Map.of(
-                    "exists", false,
-                    "message", "현재 진행 중인 제안이 없습니다."
-            );
-        }
-
-        try {
-            Map<String, Object> proposalData = objectMapper.readValue(proposalJson, Map.class);
-            Long createdAt = Long.valueOf(proposalData.get("createdAt").toString());
-            Long remainingTime = createdAt + Duration.ofMinutes(30).toMillis() - System.currentTimeMillis();
-
-            return Map.of(
-                    "exists", true,
-                    "proposalData", proposalData,
-                    "remainingTimeMs", Math.max(0, remainingTime),
-                    "isExpired", remainingTime <= 0
-            );
-        } catch (JsonProcessingException e) {
-            log.error("제안 데이터 파싱 실패 - roomId: {}", roomId, e);
-            return Map.of(
-                    "exists", false,
-                    "message", "제안 데이터 오류"
-            );
-        }
     }
 }

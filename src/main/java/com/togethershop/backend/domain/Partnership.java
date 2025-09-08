@@ -1,6 +1,6 @@
 package com.togethershop.backend.domain;
 
-import com.togethershop.backend.dto.PartnershipStatus;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,14 +23,13 @@ public class Partnership {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "business_id", nullable = false)
+    @JsonBackReference
     private Business requester;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "partner_business_id", nullable = false)
+    @JsonBackReference
     private Business partner;
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PartnershipStatus status = PartnershipStatus.REQUESTED;
 
     @Column(name = "start_date")
     private LocalDate startDate;
@@ -43,5 +42,6 @@ public class Partnership {
 
     @Column(name = "updated_at", insertable = false)
     private LocalDateTime updatedAt;
+
 }
 

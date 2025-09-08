@@ -1,13 +1,11 @@
 package com.togethershop.backend.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 
 @Data
 @NoArgsConstructor
@@ -15,12 +13,12 @@ import java.util.Map;
 @Builder
 public class ChatMessageDTO {
     private String roomId;
-    private String senderName;
-    private String content;
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime createdAt;
     private Long senderId;
-    private String shopName;
-    private Map<String, Object> payload;
-    private MessageType messageType;
+    private String senderName;
+    private String businessName;
+    private String content;
+    private MessageType type;
+    private LocalDateTime timestamp;
+    private boolean isTemp;
+    private ProposalPayloadDTO payload;
 }

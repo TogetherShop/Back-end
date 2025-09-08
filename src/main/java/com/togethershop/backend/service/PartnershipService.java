@@ -3,11 +3,13 @@ package com.togethershop.backend.service;
 import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.ChatMessage;
 import com.togethershop.backend.domain.ChatRoom;
+import com.togethershop.backend.domain.Partnership;
 import com.togethershop.backend.dto.ChatStatus;
 import com.togethershop.backend.dto.MessageDeliveryStatus;
 import com.togethershop.backend.dto.MessageType;
 import com.togethershop.backend.repository.ChatMessageRepository;
 import com.togethershop.backend.repository.ChatRoomRepository;
+import com.togethershop.backend.repository.PartnershipRepository;
 import com.togethershop.backend.repository.ShopUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -29,17 +31,27 @@ public class PartnershipService {
     private final ShopUserRepository userRepo;
     private final ChatMessageRepository messageRepo;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PartnershipRepository partnershipRepo;
 
     /**
      * 협업 요청 생성
      */
     @Transactional
     public ChatRoom createRequest(Long requesterId, Long recipientId, String message) {
+        if (partnershipRepo.existsPartnership(requesterId, requesterId)) {
+            throw new IllegalStateException("이미 존재하는 파트너십입니다.");
+        }
         Business requester = userRepo.findById(requesterId)
                 .orElseThrow(() -> new IllegalArgumentException("요청자를 찾을 수 없습니다"));
         Business recipient = userRepo.findById(recipientId)
                 .orElseThrow(() -> new IllegalArgumentException("수신자를 찾을 수 없습니다"));
 
+        Partnership partnership = Partnership.builder()
+                .requester(requester)
+                .partner(recipient)
+                .build();
+
+        partnershipRepo.save(partnership);
         // 채팅방 생성
         ChatRoom room = ChatRoom.builder()
                 .roomId(UUID.randomUUID().toString())
@@ -47,8 +59,10 @@ public class PartnershipService {
                 .recipient(recipient)
                 .status(ChatStatus.WAITING)
                 .createdAt(LocalDateTime.now())
+                .partnership(partnership)
                 .build();
         room = roomRepo.save(room);
+
 
         // 메시지 생성 (deliveryStatus 기본값 처리)
         ChatMessage chatMessage = ChatMessage.builder()
@@ -59,6 +73,7 @@ public class PartnershipService {
                 .content(message)
                 .deliveryStatus(MessageDeliveryStatus.SENT) // 반드시 기본값 넣기
                 .sentAt(LocalDateTime.now())
+                .partnership(partnership)
                 .build();
         messageRepo.save(chatMessage);
 
@@ -95,6 +110,7 @@ public class PartnershipService {
                 .content("요청이 수락되었습니다")
                 .deliveryStatus(MessageDeliveryStatus.SENT)
                 .sentAt(LocalDateTime.now())
+                .partnership(room.getPartnership())
                 .build();
         messageRepo.save(sysMessage);
 
@@ -127,6 +143,7 @@ public class PartnershipService {
                 .content("요청이 거절되었습니다")
                 .deliveryStatus(MessageDeliveryStatus.SENT)
                 .sentAt(LocalDateTime.now())
+                .partnership(room.getPartnership())
                 .build();
         messageRepo.save(sysMessage);
 
@@ -148,6 +165,7 @@ public class PartnershipService {
                 .content(content)
                 .deliveryStatus(MessageDeliveryStatus.SENT)
                 .sentAt(LocalDateTime.now())
+                .partnership(room.getPartnership())
                 .build();
         messageRepo.save(msg);
 

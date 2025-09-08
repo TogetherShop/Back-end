@@ -1,6 +1,5 @@
 package com.togethershop.backend.domain;
 
-import com.togethershop.backend.dto.DiscountType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,13 +8,13 @@ import java.time.LocalDateTime;
 
 // CouponProposal.java
 @Entity
-@Table(name = "coupon_proposals")
+@Table(name = "coupon_templates")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CouponProposal {
+public class CouponTemplate {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "template_id")
@@ -44,9 +43,4 @@ public class CouponProposal {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-    @Column(name = "is_active")
-    private Boolean isActive;
-    @Enumerated(EnumType.STRING)
-    @Column(name = "discount_type", nullable = false, length = 20)
-    private DiscountType discountType;
 }
