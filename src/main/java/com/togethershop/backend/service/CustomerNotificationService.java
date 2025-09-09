@@ -21,6 +21,7 @@ public class CustomerNotificationService {
     private final CustomerRepository customerRepo;
     private final FcmService fcmService;
 
+
     @Transactional
     public void sendCouponCreatedNotification(Long customerId, String couponName) {
         Customer customer = customerRepo.findById(customerId)

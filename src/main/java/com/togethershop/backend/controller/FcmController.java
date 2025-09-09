@@ -1,6 +1,7 @@
 package com.togethershop.backend.controller;
 
 
+import com.togethershop.backend.dto.FcmSendDTO;
 import com.togethershop.backend.dto.FcmTokenRequestDTO;
 import com.togethershop.backend.security.CustomUserDetails;
 import com.togethershop.backend.service.FcmService;
@@ -29,5 +30,10 @@ public class FcmController {
     public ResponseEntity<Void> updateBusinessFcmToken(@RequestBody FcmTokenRequestDTO request, @AuthenticationPrincipal CustomUserDetails user) {
         fcmService.updateBusinessFcmToken(user.getUserId(), request.getFcmToken());
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/send-test-notification")
+    public ResponseEntity<String> sendTestNotification(@RequestBody FcmSendDTO dto) {
+        return fcmService.sendTestNotification(dto);
     }
 }

@@ -279,7 +279,7 @@ public class CustomerCouponService {
         // partnershipId -> businessId -> businessName 조회
         String couponName = template.getPartnership().getRequester().getBusinessName() + " 에서";
 
-// 알림 전송
+        // 알림 전송
         customerNotificationService.sendCouponCreatedNotification(customerId, couponName);
 
         // 엔티티 -> DTO 변환

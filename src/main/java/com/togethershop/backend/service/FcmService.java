@@ -11,6 +11,7 @@ import com.togethershop.backend.repository.BusinessRepository;
 import com.togethershop.backend.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,4 +64,29 @@ public class FcmService {
             return false;
         }
     }
+
+    public ResponseEntity<String> sendTestNotification(FcmSendDTO dto){
+        try {
+            Notification.Builder notificationBuilder = Notification.builder()
+                    .setTitle(dto.getTitle())
+                    .setBody(dto.getBody());
+
+            if (dto.getImage()!=null) {
+                notificationBuilder.setImage(dto.getImage());
+            }
+
+            Message message = Message.builder()
+                    .setToken(dto.getToken())
+                    .setNotification(notificationBuilder.build())
+                    .build();
+
+            String response = firebaseMessaging.send(message);
+            log.info("Firebase message sent : {}", message.toString());
+            return ResponseEntity.ok(response);
+        } catch (FirebaseMessagingException e) {
+            log.error(e.getMessage());
+            return ResponseEntity.status(500).build();
+        }
+    }
+
 }
