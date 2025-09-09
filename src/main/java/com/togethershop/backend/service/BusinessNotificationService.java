@@ -30,4 +30,10 @@ public class BusinessNotificationService {
                         .build())
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public boolean markNotificationAsRead(Long notificationId) {
+        int updated = notificationRepo.markAsRead(notificationId);
+        return updated > 0;
+    }
 }

@@ -9,10 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -34,5 +31,25 @@ public class NotificationController {
     public ResponseEntity<List<NotificationResponseDTO>> getBusinessNotifications(@AuthenticationPrincipal CustomUserDetails user) {
         List<NotificationResponseDTO> notificationDto = businessNotificationService.getUnreadNotificationsByBusiness(user.getUserId());
         return ResponseEntity.ok(notificationDto);
+    }
+
+    @PostMapping("/customer/{notificationId}/read")
+    public ResponseEntity<Void> markAsReadCustomer(@PathVariable Long notificationId) {
+        boolean success = customerNotificationService.markNotificationAsRead(notificationId);
+        if (success) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/business/{notificationId}/read")
+    public ResponseEntity<Void> markAsReadBusiness(@PathVariable Long notificationId) {
+        boolean success = businessNotificationService.markNotificationAsRead(notificationId);
+        if (success) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

@@ -87,5 +87,11 @@ public class CustomerNotificationService {
         notificationRepo.save(notification);
     }
 
+    @Transactional
+    public boolean markNotificationAsRead(Long notificationId) {
+        int updated = notificationRepo.markAsRead(notificationId);
+        return updated > 0;
+    }
+
 }
 
