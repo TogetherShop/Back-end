@@ -63,6 +63,10 @@ public class Business {
 
     @Column(name = "collaboration_category")
     private String collaborationCategory;
+
+    @Column(name = "together_index")
+    private Double togetherIndex = 0.0;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status")
     private VerificationStatus verificationStatus = VerificationStatus.PENDING;
