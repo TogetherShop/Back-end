@@ -1,0 +1,17 @@
+package com.togethershop.backend.repository;
+
+import com.togethershop.backend.domain.CustomerNotification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface CustomerNotificationRepository extends JpaRepository<CustomerNotification, Long> {
+
+    // 고객별 알림 목록 조회 (예: 최신순)
+    List<CustomerNotification> findAllByCustomerIdOrderBySentAtDesc(Long customerId);
+
+    // 상태별 필터링 조회 (필요시 추가)
+    List<CustomerNotification> findAllByCustomerIdAndStatusOrderBySentAtDesc(Long customerId, String status);
+}
