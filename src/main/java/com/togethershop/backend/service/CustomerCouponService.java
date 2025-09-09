@@ -163,7 +163,7 @@ public class CustomerCouponService {
                 .businessCategory(partnerBusiness.getBusinessCategory())
                 .startDate(template.getStartDate())
                 .endDate(template.getEndDate())
-                .description(template.getDiscountValue() + "%" + template.getItem() + " 할인")
+                .description(template.getDiscountValue() + "% " + template.getItem() + " 할인")
                 .build();
     }
 
@@ -219,7 +219,7 @@ public class CustomerCouponService {
                     Business partnerBusiness = businessMap.get(partnerBusinessId);
 
                     // 설명은 기존과 동일하게 할인율+품목 조합으로 생성
-                    String description = template.getDiscountValue() + "%" + template.getItem() + " 할인";
+                    String description = template.getDiscountValue() + "% " + template.getItem() + " 할인";
 
                     return CouponResponseDTO.builder()
                             .couponId(c.getCouponId())

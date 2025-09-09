@@ -65,28 +65,4 @@ public class FcmService {
         }
     }
 
-    public ResponseEntity<String> sendTestNotification(FcmSendDTO dto){
-        try {
-            Notification.Builder notificationBuilder = Notification.builder()
-                    .setTitle(dto.getTitle())
-                    .setBody(dto.getBody());
-
-            if (dto.getImage()!=null) {
-                notificationBuilder.setImage(dto.getImage());
-            }
-
-            Message message = Message.builder()
-                    .setToken(dto.getToken())
-                    .setNotification(notificationBuilder.build())
-                    .build();
-
-            String response = firebaseMessaging.send(message);
-            log.info("Firebase message sent : {}", message.toString());
-            return ResponseEntity.ok(response);
-        } catch (FirebaseMessagingException e) {
-            log.error(e.getMessage());
-            return ResponseEntity.status(500).build();
-        }
     }
-
-}

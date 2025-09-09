@@ -32,8 +32,4 @@ public class FcmController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/send-test-notification")
-    public ResponseEntity<String> sendTestNotification(@RequestBody FcmSendDTO dto) {
-        return fcmService.sendTestNotification(dto);
-    }
 }

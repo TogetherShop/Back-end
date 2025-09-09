@@ -59,5 +59,18 @@ public class CustomerNotificationService {
         }
     }
 
+    @Transactional
+    public void saveNotification(Long customerId, String title, String message, boolean sent) {
+        CustomerNotification notification = new CustomerNotification();
+        notification.setCustomerId(customerId);
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setNotificationType(NotificationType.COUPON);
+        notification.setSentAt(LocalDateTime.now());
+        notification.setStatus(sent ? NotificationStatus.DELIVERED : NotificationStatus.FAILED);
+
+        notificationRepo.save(notification);
+    }
+
 }
 
