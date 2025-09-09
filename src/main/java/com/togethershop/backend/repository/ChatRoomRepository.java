@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     Optional<ChatRoom> findByRoomId(String roomId);
-    List<ChatRoom> findByPartnershipIdAndStatus(Long partnershipId, ChatStatus status);
+    List<ChatRoom> findByPartnershipIdInAndStatus(List<Long> partnershipIds, ChatStatus status);
 
     List<ChatRoom> findByPartnershipIdIn(List<Long> partnershipId);
     List<ChatRoom> findByRequesterIdOrRecipientIdOrderByCreatedAtDesc(Long requesterId, Long recipientId);
