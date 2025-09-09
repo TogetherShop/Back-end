@@ -1,7 +1,5 @@
 package com.togethershop.backend.controller;
 
-import com.togethershop.backend.domain.CouponTemplate;
-import com.togethershop.backend.dto.CouponDTO;
 import com.togethershop.backend.dto.ProposalPayloadDTO;
 import com.togethershop.backend.security.CustomUserDetails;
 import com.togethershop.backend.service.ChatService;
@@ -15,7 +13,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @Controller
@@ -42,27 +39,14 @@ public class StompChatController {
     public void propose(@Payload ProposalPayloadDTO dto, Principal principal) throws Exception {
         CustomUserDetails userDetails = getUserFromPrincipal(principal);
 
-        CouponDTO proposerCoupon = dto.getProposerCoupon();
-        if (proposerCoupon == null) {
+        if (dto.getProposerCoupon() == null) {
             throw new IllegalArgumentException("proposerCoupon 정보가 필요합니다");
         }
 
-        // Service에 맞는 CouponTemplate 생성
-        CouponTemplate template = CouponTemplate.builder()
-                .businessId(userDetails.getUserId())
-                .discountValue(proposerCoupon.getDiscountValue() != null ? proposerCoupon.getDiscountValue() : 0L)
-                .totalQuantity(proposerCoupon.getTotalQuantity() != null ? proposerCoupon.getTotalQuantity() : 1)
-                .startDate(proposerCoupon.getStartDate())
-                .endDate(proposerCoupon.getEndDate())
-                .description(proposerCoupon.getItemName())
-                .acceptedByRequester(false)
-                .acceptedByRecipient(false)
-                .createdAt(LocalDateTime.now())
-                .build();
 
-        chatService.proposeCoupon(dto.getRoomId(), userDetails.getUserId(), template);
+        // ✅ CouponDTO 그대로 전달
+        chatService.proposeCoupon(dto.getRoomId(), userDetails.getUserId(), dto);
     }
-
 
     // 3️⃣ 제안 수락
     @MessageMapping("/chat.proposal.accept")
@@ -75,7 +59,7 @@ public class StompChatController {
             return;
         }
 
-        chatService.acceptProposal(proposalId, userDetails.getUserId());
+        chatService.acceptProposal(proposalId);
     }
 
     // 4️⃣ 제안 거절
@@ -90,7 +74,7 @@ public class StompChatController {
             return;
         }
 
-        chatService.rejectProposal(proposalId, userDetails.getUserId(), reason);
+        chatService.rejectProposal(proposalId, reason);
     }
 
     // 5️⃣ 제안 상태 조회

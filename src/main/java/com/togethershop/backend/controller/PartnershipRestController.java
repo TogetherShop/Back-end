@@ -3,11 +3,13 @@ package com.togethershop.backend.controller;
 import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.ChatMessage;
 import com.togethershop.backend.domain.ChatRoom;
+import com.togethershop.backend.domain.Partnership;
 import com.togethershop.backend.dto.ChatHistoryResponseDTO;
 import com.togethershop.backend.dto.ChatMessageResponseDTO;
 import com.togethershop.backend.dto.MessageType;
 import com.togethershop.backend.repository.ChatMessageRepository;
 import com.togethershop.backend.repository.ChatRoomRepository;
+import com.togethershop.backend.repository.PartnershipRepository;
 import com.togethershop.backend.repository.ShopUserRepository;
 import com.togethershop.backend.security.CustomUserDetails;
 import com.togethershop.backend.service.PartnershipService;
@@ -31,10 +33,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class PartnershipRestController {
+
     private final PartnershipService partnershipService;
     private final ChatRoomRepository roomRepo;
     private final ShopUserRepository userRepo;
     private final ChatMessageRepository messageRepo;
+    private final PartnershipRepository partnershipRepo;
 
     @PostMapping("/request/{recipientId}")
     public ResponseEntity<?> requestPartnership(
@@ -83,11 +87,23 @@ public class PartnershipRestController {
     }
 
     /**
-     * ✅ 누락됐던 방 목록 API 복구
+     * Partnership 상태 조회 헬퍼
+     */
+    private String getPartnershipStatus(ChatRoom room) {
+        Business requester = room.getRequester();
+        Business recipient = room.getRecipient();
+        Partnership partnership = partnershipRepo.findByRequesterAndPartner(requester, recipient)
+                .orElse(null);
+        return partnership != null ? partnership.getStatus().name() : "REQUESTED";
+    }
+
+    /**
+     * 방 목록 조회 (status = Partnership 기준)
      */
     @GetMapping("/rooms")
     public ResponseEntity<List<Map<String, Object>>> myRooms(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(value = "q", required = false) String query) {
 
         Long userId = userDetails.getUserId();
         Business user = userRepo.findById(userId)
@@ -96,11 +112,26 @@ public class PartnershipRestController {
         List<ChatRoom> rooms = roomRepo.findByRequesterIdOrRecipientIdOrderByCreatedAtDesc(
                 user.getId(), user.getId());
 
-        // (빠른 적용 위해 Map 유지. 필요시 DTO로 빼드릴 수 있어요)
+        if (query != null && !query.trim().isEmpty()) {
+            String q = query.trim().toLowerCase();
+            rooms = rooms.stream()
+                    .filter(r -> {
+                        boolean isRequester = r.getRequester().getId().equals(user.getId());
+                        Business otherUser = isRequester ? r.getRecipient() : r.getRequester();
+                        return otherUser.getBusinessName().toLowerCase().contains(q)
+                                || (otherUser.getBusinessCategory() != null
+                                && otherUser.getBusinessCategory().toLowerCase().contains(q));
+                    })
+                    .toList();
+        }
+
         List<Map<String, Object>> dto = rooms.stream().map(r -> {
             Map<String, Object> map = new HashMap<>();
             map.put("roomId", r.getRoomId());
-            map.put("status", r.getStatus().name()); // enum → String
+
+            // Partnership 상태 기준
+            map.put("status", getPartnershipStatus(r));
+
             map.put("createdAt", r.getCreatedAt());
 
             boolean isRequester = r.getRequester().getId().equals(user.getId());
@@ -108,12 +139,16 @@ public class PartnershipRestController {
             map.put("otherShop", otherUser.getBusinessName());
             map.put("otherUserId", otherUser.getId());
             map.put("role", isRequester ? "REQUESTER" : "RECIPIENT");
+            map.put("otherUserCategory", otherUser.getBusinessCategory());
             return map;
         }).toList();
 
         return ResponseEntity.ok(dto);
     }
 
+    /**
+     * 채팅 기록 조회 (payload 포함, status = Partnership 기준)
+     */
     @GetMapping("/rooms/{roomId}/history")
     public ResponseEntity<ChatHistoryResponseDTO> history(
             @PathVariable String roomId,
@@ -130,6 +165,13 @@ public class PartnershipRestController {
             return ResponseEntity.status(403).build();
         }
 
+        String partnershipStatus = getPartnershipStatus(room);
+
+        // 현재 접속자 기준
+        boolean isRequester = room.getRequester().getId().equals(userId);
+        Business me = isRequester ? room.getRequester() : room.getRecipient();
+        Business otherUser = isRequester ? room.getRecipient() : room.getRequester();
+
         Page<ChatMessage> msgs = messageRepo.findByRoomRoomIdOrderBySentAtAsc(
                 roomId, PageRequest.of(page, size));
 
@@ -142,22 +184,23 @@ public class PartnershipRestController {
 
             ChatMessageResponseDTO.ChatMessageResponseDTOBuilder builder = ChatMessageResponseDTO.builder()
                     .id(m.getId())
-                    .type(m.getType().name()) // enum → String
+                    .type(m.getType().name())
                     .senderId(m.getSenderId())
                     .senderName(senderName)
                     .content(m.getContent())
-                    .createdAt(m.getSentAt()); // Instant → LocalDateTime
+                    .createdAt(m.getSentAt());
 
-            // ✅ PARTNERSHIP_REQUEST일 때 payload 채워서 프론트 조건부 렌더링 지원
             if (m.getType() == MessageType.PARTNERSHIP_REQUEST) {
+                // payload에서도 현재 접속자 기준으로 requester/recipient
                 builder.payload(ChatMessageResponseDTO.Payload.builder()
                         .requestId(m.getId())
-                        .status(room.getStatus().name()) // enum → String
+                        .status(partnershipStatus)
                         .message(m.getContent())
                         .requesterId(room.getRequester().getId())
                         .recipientId(room.getRecipient().getId())
                         .build());
             }
+
             return builder.build();
         }).toList();
 
@@ -168,16 +211,30 @@ public class PartnershipRestController {
                 .currentPage(page)
                 .roomInfo(ChatHistoryResponseDTO.RoomInfo.builder()
                         .roomId(room.getRoomId())
-                        .status(room.getStatus().name()) // enum → String
+                        .status(partnershipStatus)
                         .currentUserId(userId)
                         .requesterId(room.getRequester().getId())
                         .recipientId(room.getRecipient().getId())
+                        .me(ChatHistoryResponseDTO.UserInfo.builder()
+                                .id(me.getId())
+                                .username(me.getUsername())
+                                .shopName(me.getBusinessName())
+                                .build())
+                        .otherUser(ChatHistoryResponseDTO.UserInfo.builder()
+                                .id(otherUser.getId())
+                                .username(otherUser.getUsername())
+                                .shopName(otherUser.getBusinessName())
+                                .build())
                         .build())
                 .build();
 
         return ResponseEntity.ok(response);
     }
 
+
+    /**
+     * 단일 방 조회 (status = Partnership 기준)
+     */
     @GetMapping("/rooms/{roomId}")
     public ResponseEntity<?> getRoomInfo(
             @PathVariable String roomId,
@@ -191,23 +248,31 @@ public class PartnershipRestController {
                 !room.getRecipient().getId().equals(userId)) {
             return ResponseEntity.status(403).body(Map.of("error", "접근 권한이 없습니다"));
         }
-
+        String partnershipStatus = getPartnershipStatus(room);
         boolean isRequester = room.getRequester().getId().equals(userId);
+        Business me = isRequester ? room.getRequester() : room.getRecipient();
         Business otherUser = isRequester ? room.getRecipient() : room.getRequester();
 
         return ResponseEntity.ok(Map.of(
                 "roomId", room.getRoomId(),
-                "status", room.getStatus().name(),
+                "status", getPartnershipStatus(room),
                 "createdAt", room.getCreatedAt(),
                 "role", isRequester ? "REQUESTER" : "RECIPIENT",
                 "requesterId", room.getRequester().getId(),
                 "recipientId", room.getRecipient().getId(),
+                "partnershipStatus", getPartnershipStatus(room),
+                "me", Map.of(
+                        "id", me.getId(),
+                        "username", me.getUsername(),
+                        "shopName", me.getBusinessName()
+                ),
                 "otherUser", Map.of(
                         "id", otherUser.getId(),
                         "username", otherUser.getUsername(),
                         "shopName", otherUser.getBusinessName()
                 )
         ));
+
     }
 
     /**

@@ -9,7 +9,7 @@ import java.time.LocalDate;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CouponDTO {
     private String itemName;
-    private Integer discountValue;
+    private Integer discountPercent;
     private Integer totalQuantity;
     private LocalDate startDate;
     private LocalDate endDate;   // discount_type

@@ -1,6 +1,7 @@
 package com.togethershop.backend.domain;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.togethershop.backend.dto.PartnershipStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,7 +20,7 @@ public class Partnership {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "partnership_id")
-    private Long partnershipId;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "business_id", nullable = false)
@@ -42,6 +43,12 @@ public class Partnership {
 
     @Column(name = "updated_at", insertable = false)
     private LocalDateTime updatedAt;
+
+    @OneToOne(mappedBy = "partnership", cascade = CascadeType.ALL)
+    private ChatRoom chatRoom;
+
+    @Enumerated(EnumType.STRING)
+    private PartnershipStatus status = PartnershipStatus.REQUESTED;
 
 }
 

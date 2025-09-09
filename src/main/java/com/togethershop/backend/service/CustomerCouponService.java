@@ -64,7 +64,7 @@ public class CustomerCouponService {
 
                 // ChatRoom 조건: partnershipId + status="COMPLETED"
                 List<ChatRoom> chatRooms = chatRoomRepository
-                        .findByPartnershipIdAndStatus(partnership.getPartnershipId(), ChatStatus.COMPLETED);
+                        .findByPartnershipIdAndStatus(partnership.getId(), ChatStatus.ACCEPTED);
 
                 List<Long> roomIds = chatRooms.stream()
                         .map(ChatRoom::getId)
@@ -94,22 +94,18 @@ public class CustomerCouponService {
 
     private CouponTemplateDTO toCouponTemplateDTO(CouponTemplate template, Business business) {
         return CouponTemplateDTO.builder()
-                .templateId(template.getTemplateId())
+                .templateId(template.getId())
                 .discountValue(template.getDiscountValue())
                 .totalQuantity(template.getTotalQuantity())
-                .currentQuantity(template.getCurrentQuantity())
-                .maxUsePerCustomer(template.getMaxUsePerCustomer())
+                .currentQuantity(template.getTotalQuantity())
                 .createdAt(template.getCreatedAt())
-                .roomId(template.getRoomId())
-                .businessId(template.getBusinessId())
+                .roomId(template.getRoom().getId())
+                .businessId(template.getPartnership().getPartner().getId())
                 .businessName(business != null ? business.getBusinessName() : null)
                 .businessCategory(business != null ? business.getBusinessCategory() : null)
                 .startDate(template.getStartDate())
                 .endDate(template.getEndDate())
-                .description(template.getDescription())
-                .termsAndConditions(template.getTermsAndConditions())
-                .acceptedByRequester(template.getAcceptedByRequester())
-                .acceptedByRecipient(template.getAcceptedByRecipient())
+                .description(template.getItem())
                 .build();
     }
 
@@ -142,11 +138,11 @@ public class CustomerCouponService {
         // 3. coupon_template 조회 (description 포함)
         List<CouponTemplate> templates = couponTemplateRepository.findAllById(templateIds);
         Map<Long, CouponTemplate> templateMap = templates.stream()
-                .collect(Collectors.toMap(CouponTemplate::getTemplateId, t -> t));
+                .collect(Collectors.toMap(CouponTemplate::getId, t -> t));
 
         // 4. coupon_template 에서 참조하는 business_id 수집하여 business 조회
         Set<Long> businessIds = templates.stream()
-                .map(CouponTemplate::getBusinessId)
+                .map(CouponTemplate::getPartnership).map(Partnership::getPartner).map(Business::getId)
                 .collect(Collectors.toSet());
         List<Business> businesses = businessRepository.findAllById(businessIds);
         Map<Long, Business> businessMap = businesses.stream()
@@ -156,7 +152,7 @@ public class CustomerCouponService {
         return coupons.stream()
                 .map(c -> {
                     CouponTemplate template = templateMap.get(c.getTemplateId());
-                    Business business = (template != null) ? businessMap.get(template.getBusinessId()) : null;
+                    Business business = (template != null) ? businessMap.get(template.getPartnership().getPartner().getId()) : null;
 
                     return CouponResponseDTO.builder()
                             .couponId(c.getCouponId())
@@ -168,14 +164,13 @@ public class CustomerCouponService {
                             .expireDate(c.getExpireDate())
                             .usedDate(c.getUsedDate())
                             .status(c.getStatus().name())
-                            .description(template != null ? template.getDescription() : null)
+                            .description(template != null ? template.getItem() : null)
                             .businessName(business != null ? business.getBusinessName() : null)
                             .businessCategory(business != null ? business.getBusinessCategory() : null)
                             .build();
                 })
                 .collect(Collectors.toList());
     }
-
 
 
     @Transactional
@@ -186,11 +181,11 @@ public class CustomerCouponService {
 
         // 쿠폰 발급 조건 검증 예: maxIssueCount, maxUsePerCustomer, isActive 체크 추가 가능
         // totalQuantity 검증 및 감소
-        Integer currentQuantity = template.getCurrentQuantity();
+        Integer currentQuantity = template.getTotalQuantity();
         if (currentQuantity == null || currentQuantity <= 0) {
             throw new IllegalStateException("Coupon template is out of stock");
         }
-        template.setCurrentQuantity(currentQuantity - 1);
+        template.setTotalQuantity(currentQuantity - 1);
         couponTemplateRepository.save(template);
 
         // 쿠폰 발급용 couponCode 및 JWT JTI 생성 (예시 UUID 활용)
@@ -198,7 +193,7 @@ public class CustomerCouponService {
         String jtiToken = UUID.randomUUID().toString();
 
         Coupon coupon = Coupon.builder()
-                .templateId(template.getTemplateId())
+                .templateId(template.getId())
                 .customerId(customerId)
                 .couponCode(couponCode)
                 .jtiToken(jtiToken)
@@ -226,7 +221,6 @@ public class CustomerCouponService {
     }
 
 
-
     @Transactional
     public byte[] generateCouponQrCode(Long userId, Long couponId) throws Exception {
         Coupon coupon = couponRepository.findById(couponId)
@@ -245,7 +239,6 @@ public class CustomerCouponService {
         String jwtToken = jwtService.generateTokenWithJti(coupon.getCouponCode(), coupon.getJtiToken());
         return qrCodeService.generateQRCode(jwtToken);
     }
-
 
 
     @Transactional
@@ -300,10 +293,10 @@ public class CustomerCouponService {
         List<CouponTemplate> templates = couponTemplateRepository.findAllById(templateIds);
 
         var templateMap = templates.stream()
-                .collect(Collectors.toMap(CouponTemplate::getTemplateId, t -> t));
+                .collect(Collectors.toMap(CouponTemplate::getId, t -> t));
 
         var businessIds = templates.stream()
-                .map(CouponTemplate::getBusinessId)
+                .map(CouponTemplate::getPartnership).map(Partnership::getPartner).map(Business::getId)
                 .distinct()
                 .collect(Collectors.toList());
 
@@ -315,7 +308,7 @@ public class CustomerCouponService {
         return coupons.stream()
                 .map(coupon -> {
                     CouponTemplate template = templateMap.get(coupon.getTemplateId());
-                    Business business = template != null ? businessMap.get(template.getBusinessId()) : null;
+                    Business business = template != null ? businessMap.get(template.getPartnership().getPartner().getId()) : null;
 
                     int daysLeft = (int) Duration.between(now, coupon.getExpireDate()).toDays();
 
@@ -333,7 +326,6 @@ public class CustomerCouponService {
                 .collect(Collectors.toList());
 
     }
-
 
 
     //오류 방지용 테스트
