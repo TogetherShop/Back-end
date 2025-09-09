@@ -5,6 +5,7 @@ import com.togethershop.backend.domain.CustomerNotification;
 import com.togethershop.backend.domain.NotificationStatus;
 import com.togethershop.backend.domain.NotificationType;
 import com.togethershop.backend.dto.FcmSendDTO;
+import com.togethershop.backend.dto.NotificationResponseDTO;
 import com.togethershop.backend.repository.CustomerNotificationRepository;
 import com.togethershop.backend.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,18 @@ public class CustomerNotificationService {
     private final CustomerRepository customerRepo;
     private final FcmService fcmService;
 
+    @Transactional(readOnly = true)
+    public List<NotificationResponseDTO> getReadNotificationsByCustomer(Long customerId) {
+        List<CustomerNotification> notifications = notificationRepo.findByCustomerIdAndStatus(customerId, NotificationStatus.READ);
+
+        return notifications.stream()
+                .map(n -> NotificationResponseDTO.builder()
+                        .message(n.getMessage())
+                        .notificationType(n.getNotificationType())
+                        .sentAt(n.getSentAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
 
     @Transactional
     public void sendCouponCreatedNotification(Long customerId, String couponName) {
