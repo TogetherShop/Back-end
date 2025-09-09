@@ -18,6 +18,7 @@ public class CustomerProfileService {
                 .map(customer -> CustomerProfileDTO.builder()
                         .name(customer.getName())
                         .address("서울시 강남구 삼성동")
+                        .email(customer.getEmail())
                         .build())
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found or inactive"));
     }

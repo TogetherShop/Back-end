@@ -19,17 +19,14 @@ public class CouponTemplateDTO {
     private Integer totalQuantity;
     private Integer currentQuantity;
     private Integer maxUsePerCustomer;
-    private Boolean isActive;
     private LocalDateTime createdAt;
     private Long roomId;
-    private Long partnerBusinessId;
-    private Long businessId;
+    private Long applicableBusinessId;
     private String businessName;          // 추가
     private String businessCategory;      // 추가
     private LocalDate startDate;
     private LocalDate endDate;
     private String description;
-    private String termsAndConditions;
     private Boolean acceptedByRequester;
     private Boolean acceptedByRecipient;
 }
