@@ -20,38 +20,37 @@ public class GroupPurchaseProject {
     private Long id;
 
     @Column(name = "business_id", nullable = false)
-    private Long businessId;  // 사업자 ID
-
-    @Column(nullable = false, length = 200)
-    private String title;
+    private Long businessId;
 
     @Column(columnDefinition = "TEXT")
-    private String description;
+    private String description; // DDL: description (제목 역할)
 
-    @Column(name = "target_quantity", nullable = false)
-    private Integer targetQuantity;
+    @Column(name = "total_quantity")
+    private Integer totalQuantity; // DDL: total_quantity
 
-    @Column(name = "current_quantity")
-    private Integer currentQuantity;
+    @Column(name = "target_number", nullable = false)
+    private Integer targetNumber; // DDL: target_number (목표 인원)
+
+    @Column(name = "target_money", nullable = false)
+    private Long targetMoney; // DDL: target_money
+
+    @Column(name = "account_number", nullable = false, length = 50)
+    private String accountNumber; // DDL: account_number
+
+    @Column(name = "account_host", nullable = false, length = 50)
+    private String accountHost; // DDL: account_host
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private ProjectStatus status = ProjectStatus.OPEN;
-
-    @Column(name = "start_date")
-    private LocalDateTime startDate;
+    private ProjectStatus status = ProjectStatus.OPEN; // DDL: status
 
     @Column(name = "end_date")
-    private LocalDateTime endDate;
+    private LocalDateTime endDate; // DDL: end_date
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private LocalDateTime createdAt; // DDL: created_at
 
     public enum ProjectStatus {
-        OPEN, CLOSED, FULFILLED, CANCELLED
+        OPEN, CLOSED, FULFILLED, CANCELLED // DDL과 정확히 일치
     }
 }
-

@@ -22,19 +22,32 @@ public class ChatRoom {
     @Column(unique = true, nullable = false)
     private String roomId; // 예: UUID
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "requester_id", nullable = false)
-    private Business requester; // 요청자
+    @Column(name = "requester_id", nullable = false)
+    private Long requesterId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_id", nullable = false)
-    private Business recipient; // 수신자
+    @Column(name = "recipient_id", nullable = false)
+    private Long recipientId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status")
     private ChatStatus status = ChatStatus.WAITING;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "partnership_id")
     private Long partnershipId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "requester_id", insertable = false, updatable = false)
+    private Business requester;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_id", insertable = false, updatable = false)
+    private Business recipient;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partnership_id", insertable = false, updatable = false)
+    private Partnership partnership;
 }
 

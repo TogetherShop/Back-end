@@ -26,6 +26,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll().requestMatchers("/api/customer/auth/**").permitAll()
                         .requestMatchers("/api/customer/**").authenticated() // 고객 API는 인증 필요
                         .requestMatchers("/api/fcm/**").authenticated() // fcm
+                        .requestMatchers("/api/business/**").authenticated() // 사업자 API는 인증 필요
                         .requestMatchers("/ws-chat/**").permitAll()
                         .anyRequest().authenticated()
                 )
