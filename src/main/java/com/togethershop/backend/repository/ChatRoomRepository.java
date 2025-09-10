@@ -5,19 +5,19 @@ import com.togethershop.backend.dto.ChatStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import java.util.List;
 import java.util.Optional;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     Optional<ChatRoom> findByRoomId(String roomId);
+
     List<ChatRoom> findByPartnershipIdInAndStatus(List<Long> partnershipIds, ChatStatus status);
 
     List<ChatRoom> findByPartnershipIdIn(List<Long> partnershipId);
+
     List<ChatRoom> findByRequesterIdOrRecipientIdOrderByCreatedAtDesc(Long requesterId, Long recipientId);
 
-    @Query("SELECT cr FROM ChatRoom cr WHERE cr.requesterId = :businessId " +
-            "OR cr.recipientId = :businessId")
-    List<ChatRoom> findByBusinessId(@Param("businessId") Long businessId);
 
     @Query("SELECT cr FROM ChatRoom cr WHERE " +
             "(cr.requester.id = :businessId OR cr.recipient.id = :businessId) " +

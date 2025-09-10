@@ -12,6 +12,17 @@ import java.util.Optional;
 public interface PartnershipRepository extends JpaRepository<Partnership, Long> {
 
 
+    // requester(연관관계)를 통해 검색
+    List<Partnership> findByRequester_Id(Long requesterId);
+
+    // partner(연관관계)를 통해 검색
+    List<Partnership> findByPartner_Id(Long partnerBusinessId);
+
+    // 여러 requester 대상으로 검색
+    List<Partnership> findByRequester_IdIn(List<Long> requesterIds);
+
+    // 여러 partner 대상으로 검색
+    List<Partnership> findByPartner_IdIn(List<Long> partnerIds);
 
     // 특정 businessId가 requester 또는 partner인 모든 파트너십 조회
     List<Partnership> findByRequester_IdOrPartner_Id(Long requesterId, Long partnerId);
