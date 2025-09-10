@@ -68,14 +68,16 @@ public class BusinessCouponController {
      */
     @GetMapping("/{businessId}/recent")
     public ResponseEntity<List<CouponTemplateDTO>> getRecentBusinessCoupons(@PathVariable Long businessId) {
-        
+
         log.info("사업자 ID: {} 최근 3개 쿠폰 조회 요청", businessId);
-        
-        List<CouponTemplateDTO> recentCoupons = businessCouponService.getBusinessCoupons(businessId, 3);
-        
+
+        List<CouponTemplateDTO> recentCoupons = businessCouponService.getBusinessCouponslist(businessId, 3);
+
         log.info("사업자 ID: {} 최근 쿠폰 조회 완료, 개수: {}", businessId, recentCoupons.size());
-        
+
         return ResponseEntity.ok(recentCoupons);
+    }
+
     @GetMapping
     public ResponseEntity<BusinessCouponListResponseDTO> getBusinessCoupons(Authentication authentication) {
         try {

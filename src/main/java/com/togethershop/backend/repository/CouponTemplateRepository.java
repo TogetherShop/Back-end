@@ -27,7 +27,7 @@ public interface CouponTemplateRepository extends JpaRepository<CouponTemplate, 
            "WHERE ct.applicableBusinessId = :businessId " +
            "ORDER BY ct.createdAt DESC")
     List<CouponTemplate> findByBusinessIdOrderByCreatedAtDesc(@Param("businessId") Long businessId);
-}
+
 
     @Query("SELECT ct FROM CouponTemplate ct WHERE ct.room.id = :roomId")
     List<CouponTemplate> findByRoomId(@Param("roomId") Long roomId);
