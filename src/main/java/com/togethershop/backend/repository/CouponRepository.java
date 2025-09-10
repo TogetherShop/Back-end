@@ -25,6 +25,10 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     @Query("SELECT COUNT(c) FROM Coupon c WHERE c.templateId = :templateId")
     Long countByTemplateId(@Param("templateId") Long templateId);
 
+    // 특정 템플릿의 사용된 쿠폰 개수
+    @Query("SELECT COUNT(c) FROM Coupon c WHERE c.templateId = :templateId AND c.status = :status")
+    Long countByTemplateIdAndStatus(@Param("templateId") Long templateId, @Param("status") CouponStatus status);
+
     // 특정 날짜 이전까지의 총 발급량 (30일 전까지 누적)
     @Query("SELECT COUNT(c) FROM Coupon c WHERE c.templateId = :templateId AND c.issueDate < :beforeDate")
     Long countIssuedBeforeDate(@Param("templateId") Long templateId, @Param("beforeDate") LocalDateTime beforeDate);

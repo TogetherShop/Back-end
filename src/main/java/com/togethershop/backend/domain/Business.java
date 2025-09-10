@@ -69,9 +69,6 @@ public class Business {
     @Column(name = "verification_status")
     private VerificationStatus verificationStatus = VerificationStatus.PENDING;
 
-    @Column(name = "together_index", precision = 4, scale = 1)
-    private BigDecimal togetherIndex;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
