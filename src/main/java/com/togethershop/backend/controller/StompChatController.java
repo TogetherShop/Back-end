@@ -1,5 +1,6 @@
 package com.togethershop.backend.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.togethershop.backend.dto.ProposalPayloadDTO;
 import com.togethershop.backend.security.CustomUserDetails;
 import com.togethershop.backend.service.ChatService;
@@ -64,7 +65,7 @@ public class StompChatController {
 
     // 4️⃣ 제안 거절
     @MessageMapping("/chat.proposal.reject")
-    public void rejectProposal(@Payload Map<String, Object> payload, Principal principal) {
+    public void rejectProposal(@Payload Map<String, Object> payload, Principal principal) throws JsonProcessingException {
         CustomUserDetails userDetails = getUserFromPrincipal(principal);
         Long proposalId = getLongFromMap(payload, "proposalId");
         String reason = (String) payload.get("reason");

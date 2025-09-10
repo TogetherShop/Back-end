@@ -12,6 +12,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -82,7 +83,7 @@ public class PartnershipService {
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content(message)
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
                 .partnership(p1)
                 .build();
         messageRepo.save(chatMessage);
@@ -128,7 +129,7 @@ public class PartnershipService {
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content("요청이 수락되었습니다")
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
                 .partnership(p1)
                 .build();
         messageRepo.save(sysMessage);
@@ -174,7 +175,7 @@ public class PartnershipService {
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content("요청이 거절되었습니다")
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
                 .partnership(p1)
                 .build();
         messageRepo.save(sysMessage);
@@ -197,7 +198,7 @@ public class PartnershipService {
                 .type(MessageType.TEXT)
                 .content(content)
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
                 .partnership(room.getPartnership())
                 .build();
         messageRepo.save(msg);
@@ -225,7 +226,7 @@ public class PartnershipService {
         payload.put("reason", reason);
 
         Map<String, Object> stompMessage = new HashMap<>();
-        LocalDateTime createdAt = msg.getSentAt(); // LocalDateTime
+        Instant createdAt = msg.getSentAt(); // LocalDateTime
         long epochMilli = createdAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         stompMessage.put("timestamp", epochMilli);
         stompMessage.put("type", "PARTNERSHIP_REQUEST");

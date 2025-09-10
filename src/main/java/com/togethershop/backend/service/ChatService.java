@@ -1,5 +1,6 @@
 package com.togethershop.backend.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.togethershop.backend.domain.*;
 import com.togethershop.backend.dto.*;
@@ -13,6 +14,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -49,12 +51,12 @@ public class ChatService {
                 .type(MessageType.TEXT)
                 .content(text)
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
                 .build();
 
         msg = messageRepo.save(msg);
 
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, messageToDto(msg));
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, convertToDTO(msg));
         return msg;
     }
 
@@ -75,7 +77,7 @@ public class ChatService {
         payload.setProposerId(sender.getId());
         payload.setProposerCoupon(coupon.getProposerCoupon());
         payload.setRecipientCoupon(coupon.getRecipientCoupon());
-        payload.setStatus("WAITING");
+        payload.setStatus("REQUESTED");
 
         ChatMessage msg = ChatMessage.builder()
                 .room(room)
@@ -85,11 +87,12 @@ public class ChatService {
                 .content(objectMapper.writeValueAsString(payload)) // JSON
                 .deliveryStatus(MessageDeliveryStatus.SENT)
                 .receiverBusinessId(room.getRecipient().getId())
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
                 .build();
 
         messageRepo.save(msg);
-
+        System.out.println(convertToDTO(msg));
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, convertToDTO(msg));
         return convertToDTO(msg);
     }
 
@@ -101,7 +104,9 @@ public class ChatService {
                 .orElseThrow(() -> new IllegalArgumentException("Proposal message not found"));
 
         ProposalPayloadDTO payload = objectMapper.readValue(proposalMessage.getContent(), ProposalPayloadDTO.class);
-
+        payload.setStatus("ACCEPTED");
+        proposalMessage.setContent(objectMapper.writeValueAsString(payload));
+        messageRepo.save(proposalMessage);
         ChatRoom room = proposalMessage.getRoom();
 
 
@@ -168,20 +173,23 @@ public class ChatService {
 
     // 4️⃣ 제안 거절
     @Transactional
-    public void rejectProposal(Long messageId, String reason) {
+    public void rejectProposal(Long messageId, String reason) throws JsonProcessingException {
         ChatMessage proposalMessage = messageRepo.findById(messageId)
                 .orElseThrow(() -> new IllegalArgumentException("Proposal message not found"));
 
-        ProposalPayloadDTO payload;
-        try {
-            payload = objectMapper.readValue(proposalMessage.getContent(), ProposalPayloadDTO.class);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid proposal payload", e);
-        }
+        ChatRoom room = proposalMessage.getRoom();
+        ProposalPayloadDTO payload = objectMapper.readValue(proposalMessage.getContent(), ProposalPayloadDTO.class);
+        payload.setStatus("REJECTED");
+        proposalMessage.setContent(objectMapper.writeValueAsString(payload));
+        messageRepo.save(proposalMessage);
+
 
         Business proposer = userRepo.findById(payload.getProposerId())
                 .orElseThrow(() -> new IllegalArgumentException("Proposer not found"));
-        Business recipient = proposalMessage.getRoom().getRecipient();
+
+        Business recipient = userRepo.findById(
+                Objects.equals(room.getRequester().getId(), proposer.getId()) ? room.getRecipient().getId() : room.getRequester().getId()
+        ).orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
 
         // 두 개의 Partnership 조회
         Partnership p1 = partnershipRepo.findByRequesterAndPartner(proposer, recipient)
@@ -189,14 +197,12 @@ public class ChatService {
         Partnership p2 = partnershipRepo.findByRequesterAndPartner(recipient, proposer)
                 .orElseThrow(() -> new IllegalArgumentException("Partnership not found"));
 
-        // 상태 변경
-        p1.setStatus(PartnershipStatus.REJECTED);
-        p2.setStatus(PartnershipStatus.REJECTED);
-        partnershipRepo.save(p1);
-        partnershipRepo.save(p2);
+//        // 상태 변경
+//        p1.setStatus(PartnershipStatus.REJECTED);
+//        p2.setStatus(PartnershipStatus.REJECTED);
+//        partnershipRepo.save(p1);
+//        partnershipRepo.save(p2);
 
-        // 알림 전송
-        ChatRoom room = proposalMessage.getRoom();
         messagingTemplate.convertAndSend("/topic/room/" + room.getRoomId(), Map.of(
                 "type", "PROPOSAL_REJECTED",
                 "proposalMessageId", messageId,
@@ -256,8 +262,8 @@ public class ChatService {
             try {
                 // ✅ JSON → ProposalPayloadDTO로 변환
                 ProposalPayloadDTO payload = objectMapper.readValue(entity.getContent(), ProposalPayloadDTO.class);
-                builder.content("쿠폰 교환 제안")
-                        .payload(payload);
+                builder.content("쿠폰 교환 제안");
+                builder.payload(payload);
             } catch (Exception e) {
                 builder.content("쿠폰 교환 제안 (파싱 오류)");
             }
@@ -284,15 +290,15 @@ public class ChatService {
         if (m.getType() == MessageType.COUPON_PROPOSAL) {
             try {
                 Map<String, Object> payload = objectMapper.readValue(m.getContent(), Map.class);
-                result.put("content", "쿠폰 교환 제안");
                 result.put("payload", payload);
             } catch (Exception e) {
                 result.put("content", "쿠폰 교환 제안 (파싱 오류)");
+                result.put("payload", null);
             }
         } else {
             result.put("content", m.getContent());
         }
-
+        log.info(result.toString());
         return result;
     }
 }

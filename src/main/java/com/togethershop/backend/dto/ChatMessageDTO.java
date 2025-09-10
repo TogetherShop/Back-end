@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -18,7 +18,7 @@ public class ChatMessageDTO {
     private String businessName;
     private String content;
     private MessageType type;
-    private LocalDateTime timestamp;
+    private Instant timestamp;
     private boolean isTemp;
     private ProposalPayloadDTO payload;
 }

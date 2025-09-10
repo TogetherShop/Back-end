@@ -6,6 +6,7 @@ import com.togethershop.backend.domain.ChatRoom;
 import com.togethershop.backend.domain.Partnership;
 import com.togethershop.backend.dto.ChatHistoryResponseDTO;
 import com.togethershop.backend.dto.ChatMessageResponseDTO;
+import com.togethershop.backend.dto.MessageDeliveryStatus;
 import com.togethershop.backend.dto.MessageType;
 import com.togethershop.backend.repository.ChatMessageRepository;
 import com.togethershop.backend.repository.ChatRoomRepository;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -140,10 +142,65 @@ public class PartnershipRestController {
             map.put("otherUserId", otherUser.getId());
             map.put("role", isRequester ? "REQUESTER" : "RECIPIENT");
             map.put("otherUserCategory", otherUser.getBusinessCategory());
+
+            ChatMessage lastMessage = messageRepo.findTopByRoomRoomIdOrderBySentAtDesc(r.getRoomId())
+                    .orElse(null);
+            if (lastMessage == null) {
+                map.put("lastMessage", "협업 요청 완료");
+                map.put("lastMessageAt", r.getCreatedAt());
+            } else if (lastMessage.getType() == MessageType.COUPON_PROPOSAL) {
+                map.put("lastMessage", "제휴 협의");
+                map.put("lastMessageAt", lastMessage.getSentAt());
+            } else {
+                map.put("lastMessage", lastMessage.getContent());
+                map.put("lastMessageAt", lastMessage.getSentAt());// 메시지가 없으면 방 생성 시간
+            }
+
+            if (lastMessage == null) {
+                map.put("lastMessage", "협업 요청 완료");
+                map.put("lastMessageAt", r.getCreatedAt());
+            } else {
+                // MessageType에 따라 마지막 메시지 텍스트 변경
+                switch (lastMessage.getType()) {
+                    case PARTNERSHIP_REQUEST:
+                        map.put("lastMessage", "제휴 제안");
+                        break;
+                    case COUPON_PROPOSAL:
+                        map.put("lastMessage", "제휴 협의");
+                        break;
+                    default:
+                        map.put("lastMessage", lastMessage.getContent());
+                        break;
+                }
+                map.put("lastMessageAt", lastMessage.getSentAt());
+
+                // 읽음 여부 표시
+                Long currentUserId = user.getId();
+                boolean isUnread = lastMessage.getSenderId() != null
+                        && !lastMessage.getSenderId().equals(currentUserId)
+                        && lastMessage.getDeliveryStatus() != MessageDeliveryStatus.READ;
+                map.put("isUnread", isUnread);
+            }
+
             return map;
         }).toList();
 
         return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/rooms/{roomId}/read")
+    @Transactional
+    public ResponseEntity<?> markAsRead(
+            @PathVariable String roomId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        Long userId = userDetails.getUserId();
+        int updated = messageRepo.markMessagesAsRead(roomId, userId); // repository에 구현 필요
+
+        return ResponseEntity.ok(Map.of(
+                "updatedCount", updated,
+                "status", "success"
+        ));
     }
 
     /**
