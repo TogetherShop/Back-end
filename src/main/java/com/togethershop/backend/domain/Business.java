@@ -5,7 +5,6 @@ import com.togethershop.backend.dto.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -63,7 +62,7 @@ public class Business {
     private String collaborationCategory;
 
     @Column(name = "together_index")
-    private Double togetherIndex = 0.0;
+    private Double togetherIndex;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status")

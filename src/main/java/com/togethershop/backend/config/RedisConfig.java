@@ -1,5 +1,6 @@
 package com.togethershop.backend.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.togethershop.backend.dto.ChatMessageDTO;
 import com.togethershop.backend.service.RedisChatSubscriber;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 // RedisConfig.java
@@ -27,6 +29,8 @@ class RedisConfig {
     @Value("${spring.data.redis.password}")
     private String redisPassword;
 
+    private final ObjectMapper objectMapper;
+
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
@@ -40,6 +44,10 @@ class RedisConfig {
     public RedisTemplate<String, ChatMessageDTO> chatRedisTemplate(RedisConnectionFactory cf) {
         RedisTemplate<String, ChatMessageDTO> template = new RedisTemplate<>();
         template.setConnectionFactory(cf);
+        Jackson2JsonRedisSerializer<ChatMessageDTO> serializer = new Jackson2JsonRedisSerializer<>(ChatMessageDTO.class);
+
+        // 주입받은 ObjectMapper 사용
+        serializer.setObjectMapper(objectMapper);
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         return template;

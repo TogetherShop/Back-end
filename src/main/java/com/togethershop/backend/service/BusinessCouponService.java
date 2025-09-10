@@ -1,6 +1,8 @@
 package com.togethershop.backend.service;
 
-import com.togethershop.backend.domain.*;
+import com.togethershop.backend.domain.Business;
+import com.togethershop.backend.domain.ChatRoom;
+import com.togethershop.backend.domain.CouponTemplate;
 import com.togethershop.backend.dto.*;
 import com.togethershop.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +15,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -30,8 +34,9 @@ public class BusinessCouponService {
 
     /**
      * 특정 사업자의 applicable_business_id와 일치하는 쿠폰 리스트 조회
+     *
      * @param businessId 사업자 ID (applicable_business_id와 매칭)
-     * @param limit 조회할 개수 (null이면 전체)
+     * @param limit      조회할 개수 (null이면 전체)
      * @return 쿠폰 템플릿 DTO 리스트 (description: "아메리카노 15%" 형식)
      */
     @Transactional(readOnly = true)
@@ -61,6 +66,7 @@ public class BusinessCouponService {
 
     /**
      * 특정 사업자의 최신 쿠폰 1개 조회
+     *
      * @param businessId 사업자 ID
      * @return 최신 쿠폰 템플릿 DTO (없으면 null)
      */
@@ -69,7 +75,7 @@ public class BusinessCouponService {
         log.info("사업자 ID: {} 최신 쿠폰 조회 시작", businessId);
 
         List<CouponTemplateDTO> coupons = getBusinessCouponslist(businessId, 1);
-        
+
         if (coupons.isEmpty()) {
             log.info("사업자 ID: {} 쿠폰이 없음", businessId);
             return null;
@@ -86,7 +92,7 @@ public class BusinessCouponService {
     private CouponTemplateDTO toCouponTemplateDTO(CouponTemplate template, Business business) {
         // description 형식: "아메리카노 15%"
         String description = (template.getItem() != null ? template.getItem() : "상품") + " " + template.getDiscountValue() + "%";
-        
+
         return CouponTemplateDTO.builder()
                 .templateId(template.getId())
                 .discountValue(template.getDiscountValue())
@@ -122,7 +128,7 @@ public class BusinessCouponService {
                     // 쿠폰 템플릿이 없는 경우 exchanging 상태로 생성
                     BusinessCouponDTO exchangingCoupon = createExchangingCoupon(room, businessId);
                     // exchanging 상태는 내가 발급한 쿠폰에만 추가
-                    if (room.getRequesterId().equals(businessId)) {
+                    if (room.getRequester().getId().equals(businessId)) {
                         myCoupons.add(exchangingCoupon);
                     }
                     // receivedCoupons에는 exchanging 상태 추가하지 않음
@@ -314,8 +320,10 @@ public class BusinessCouponService {
     }
 
     private BusinessCouponDTO createExchangingCoupon(ChatRoom room, Long businessId) {
-        Long partnerId = room.getRequesterId().equals(businessId) ?
-                room.getRecipientId() : room.getRequesterId();
+        Long partnerId = room.getRequester().getId().equals(businessId)
+                ? room.getRecipient().getId()
+                : room.getRequester().getId();
+
 
         Business partner = businessRepository.findById(partnerId).orElse(null);
         String partnerName = partner != null ? partner.getBusinessName() : "Unknown";
@@ -331,7 +339,7 @@ public class BusinessCouponService {
                 .status("exchanging")
                 .businessName(partnerName)
                 .discountValue(0L)
-                .owner(room.getRequesterId().equals(businessId) ? "owner" : "my")
+                .owner(room.getRequester().getId().equals(businessId) ? "owner" : "my")
                 .currentQuantity(0)
                 .totalQuantity(0)
                 .roomId(room.getId())
@@ -368,8 +376,8 @@ public class BusinessCouponService {
 
         String description = template.getItem();
         if (template.getRoom() != null) {
-            Long partnerId = template.getRoom().getRequesterId().equals(businessId) ?
-                    template.getRoom().getRecipientId() : template.getRoom().getRequesterId();
+            Long partnerId = template.getRoom().getRequester().getId().equals(businessId) ?
+                    template.getRoom().getRecipient().getId() : template.getRoom().getRequester().getId();
 
             Business partner = businessRepository.findById(partnerId).orElse(null);
             String partnerName = partner != null ? partner.getBusinessName() : "Unknown";
@@ -383,7 +391,7 @@ public class BusinessCouponService {
                 template.getRoom().getStatus() == ChatStatus.ACCEPTED;
 
         Long roomId = template.getRoom() != null ? template.getRoom().getId() : null;
-        Long partnershipId = template.getPartnership() != null ? template.getPartnership().getPartnershipId() : null;
+        Long partnershipId = template.getPartnership() != null ? template.getPartnership().getPartner().getId() : null;
 
         String title;
         if (template.getItem() != null && template.getDiscountValue() != null) {
@@ -440,8 +448,8 @@ public class BusinessCouponService {
 
         String description = template.getItem();
         if (template.getRoom() != null) {
-            Long partnerId = template.getRoom().getRequesterId().equals(businessId) ?
-                    template.getRoom().getRecipientId() : template.getRoom().getRequesterId();
+            Long partnerId = template.getRoom().getRequester().getId().equals(businessId) ?
+                    template.getRoom().getRecipient().getId() : template.getRoom().getRequester().getId();
 
             Business partner = businessRepository.findById(partnerId).orElse(null);
             String partnerName = partner != null ? partner.getBusinessName() : "Unknown";
@@ -455,7 +463,7 @@ public class BusinessCouponService {
                 template.getRoom().getStatus() == ChatStatus.ACCEPTED;
 
         Long roomId = template.getRoom() != null ? template.getRoom().getId() : null;
-        Long partnershipId = template.getPartnership() != null ? template.getPartnership().getPartnershipId() : null;
+        Long partnershipId = template.getPartnership() != null ? template.getPartnership().getPartner().getId() : null;
 
         String title;
         if (template.getItem() != null && template.getDiscountValue() != null) {

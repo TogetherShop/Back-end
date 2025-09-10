@@ -58,12 +58,12 @@ public class CustomerCouponService {
 
         // 3. partnershipId 리스트 수집
         List<Long> partnershipIds = partnerships.stream()
-                .map(Partnership::getPartnershipId)
+                .map(Partnership::getId)
                 .collect(Collectors.toList());
         log.info("파트너십 ID 리스트: {}", partnershipIds);
 
         // 4. partnershipId로 coupon_templates 조회
-        List<CouponTemplate> couponTemplates = couponTemplateRepository.findByPartnership_PartnershipIdIn(partnershipIds);
+        List<CouponTemplate> couponTemplates = couponTemplateRepository.findByPartnership_IdIn(partnershipIds);
         log.info("조회된 couponTemplates 개수: {}", couponTemplates.size());
 
         if (couponTemplates.isEmpty()) {
@@ -73,7 +73,7 @@ public class CustomerCouponService {
 
         // 5. partnershipId -> Partnership map 생성
         Map<Long, Partnership> partnershipMap = partnerships.stream()
-                .collect(Collectors.toMap(Partnership::getPartnershipId, p -> p));
+                .collect(Collectors.toMap(Partnership::getId, p -> p));
         log.debug("partnershipMap 크기: {}", partnershipMap.size());
 
         // 6. partnerBusinessId 리스트 추출 및 캐싱
@@ -115,7 +115,7 @@ public class CustomerCouponService {
                         .filter(ct -> ct.getApplicableBusinessId().equals(partnership.getPartner().getId()))
                         .toList();
 
-                log.info("    partnershipId={} 필터링된 쿠폰 개수: {}", partnership.getPartnershipId(), filteredCoupons.size());
+                log.info("    partnershipId={} 필터링된 쿠폰 개수: {}", partnership.getId(), filteredCoupons.size());
 
                 if (filteredCoupons.isEmpty()) {
                     log.info("    조건에 맞는 쿠폰 템플릿 없음, 다음 제휴로 이동");
@@ -145,10 +145,6 @@ public class CustomerCouponService {
 
         return result;
     }
-
-
-
-
 
 
     private CouponTemplateDTO toCouponTemplateDTO(CouponTemplate template, Business partnerBusiness) {
@@ -241,8 +237,6 @@ public class CustomerCouponService {
     }
 
 
-
-
     @Transactional
     public CouponResponseDTO claimCoupon(Long customerId, Long couponTemplateId) {
         // 쿠폰템플릿 조회
@@ -297,7 +291,6 @@ public class CustomerCouponService {
     }
 
 
-
     @Transactional
     public byte[] generateCouponQrCode(Long userId, Long couponId) throws Exception {
         Coupon coupon = couponRepository.findById(couponId)
@@ -316,7 +309,6 @@ public class CustomerCouponService {
         String jwtToken = jwtService.generateTokenWithJti(coupon.getCouponCode(), coupon.getJtiToken());
         return qrCodeService.generateQRCode(jwtToken);
     }
-
 
 
     @Transactional
@@ -442,8 +434,6 @@ public class CustomerCouponService {
         log.info("▶ 만료 임박 쿠폰 조회 완료, 반환 쿠폰 개수: {}", result.size());
         return result;
     }
-
-
 
 
     //오류 방지용 테스트

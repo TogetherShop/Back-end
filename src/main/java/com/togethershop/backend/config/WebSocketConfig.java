@@ -31,7 +31,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // WebSocket 엔드포인트 등록
         registry.addEndpoint("/ws-chat")
                 .addInterceptors(jwtHandshakeInterceptor)
-                .setAllowedOriginPatterns("http://localhost:5173")  // CORS 허용
+                .setAllowedOriginPatterns("*")  // CORS 허용
                 .withSockJS();  // SockJS 지원
     }
 
