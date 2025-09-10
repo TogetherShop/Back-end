@@ -22,6 +22,7 @@ public class FireBaseConfig {
     @PostConstruct
     public void initialize() {
         try (FileInputStream serviceAccount = new FileInputStream(firebaseKeyPath)) {
+            log.info("Firebase Initialize");
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                     .build();
