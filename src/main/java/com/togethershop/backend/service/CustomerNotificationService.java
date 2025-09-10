@@ -30,6 +30,7 @@ public class CustomerNotificationService {
 
         return notifications.stream()
                 .map(n -> NotificationResponseDTO.builder()
+                        .notificationId(n.getCustomerNotificationId())
                         .message(n.getMessage())
                         .notificationType(n.getNotificationType())
                         .sentAt(n.getSentAt())

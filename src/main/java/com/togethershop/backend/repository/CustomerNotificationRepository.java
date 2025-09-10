@@ -17,7 +17,7 @@ public interface CustomerNotificationRepository extends JpaRepository<CustomerNo
     List<CustomerNotification> findByCustomerIdAndStatus(Long customerId, NotificationStatus status);
 
     @Modifying
-    @Query("UPDATE CustomerNotification n SET n.status = 'READ' WHERE n.id = :notificationId")
+    @Query("UPDATE CustomerNotification n SET n.status = 'READ' WHERE n.customerNotificationId = :notificationId")
     int markAsRead(@Param("notificationId") Long notificationId);
 
     // 고객별 알림 목록 조회 (예: 최신순)

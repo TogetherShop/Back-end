@@ -8,6 +8,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class NotificationResponseDTO {
+    private Long notificationId;
     private String message;
     private NotificationType notificationType;
     private LocalDateTime sentAt;
