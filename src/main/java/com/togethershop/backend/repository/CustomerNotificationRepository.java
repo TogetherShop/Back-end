@@ -13,8 +13,7 @@ import java.util.List;
 @Repository
 public interface CustomerNotificationRepository extends JpaRepository<CustomerNotification, Long> {
 
-    @Query("SELECT n FROM CustomerNotification n WHERE n.customerId = :customerId AND n.status NOT IN ('READ', 'CLICKED')")
-    List<CustomerNotification> findByCustomerIdAndStatus(Long customerId, NotificationStatus status);
+    List<CustomerNotification> findByCustomerId(Long customerId);
 
     @Modifying
     @Query("UPDATE CustomerNotification n SET n.status = 'READ' WHERE n.customerNotificationId = :notificationId")

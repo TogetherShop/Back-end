@@ -26,13 +26,14 @@ public class CustomerNotificationService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponseDTO> getReadNotificationsByCustomer(Long customerId) {
-        List<CustomerNotification> notifications = notificationRepo.findByCustomerIdAndStatus(customerId, NotificationStatus.READ);
+        List<CustomerNotification> notifications = notificationRepo.findByCustomerId(customerId);
 
         return notifications.stream()
                 .map(n -> NotificationResponseDTO.builder()
                         .notificationId(n.getCustomerNotificationId())
                         .message(n.getMessage())
                         .notificationType(n.getNotificationType())
+                        .status(n.getStatus())
                         .sentAt(n.getSentAt())
                         .build())
                 .collect(Collectors.toList());
