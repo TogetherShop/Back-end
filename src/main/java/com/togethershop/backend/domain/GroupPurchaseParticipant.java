@@ -26,9 +26,6 @@ public class GroupPurchaseParticipant {
     @Column(name = "business_id", nullable = false)
     private Long businessId;
 
-    @Column(nullable = false)
-    private Integer quantity;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private GroupPurchaseStatus status = GroupPurchaseStatus.APPLIED;

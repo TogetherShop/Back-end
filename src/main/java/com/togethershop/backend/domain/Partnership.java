@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "partnerships")
@@ -16,7 +17,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class Partnership {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "partnership_id")
