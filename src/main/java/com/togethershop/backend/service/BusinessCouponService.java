@@ -29,7 +29,7 @@ public class BusinessCouponService {
      * @return 쿠폰 템플릿 DTO 리스트 (description: "아메리카노 15%" 형식)
      */
     @Transactional(readOnly = true)
-    public List<CouponTemplateDTO> getBusinessCoupons(Long businessId, Integer limit) {
+    public List<CouponTemplateDTO> getBusinessCouponslist(Long businessId, Integer limit) {
         log.info("사업자 ID: {} 적용 가능한 쿠폰 조회 시작, 제한: {}", businessId, limit);
 
         // 사업자 정보 조회
@@ -95,4 +95,10 @@ public class BusinessCouponService {
                 .description(description)
                 .build();
     }
+}
+import com.togethershop.backend.dto.*;
+
+public interface BusinessCouponService {
+    BusinessCouponListResponseDTO getBusinessCoupons(Long businessId);
+    CouponAnalysisResponseDTO getCouponAnalysis(Long businessId, Long templateId);
 }

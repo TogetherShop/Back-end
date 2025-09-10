@@ -1,13 +1,16 @@
 package com.togethershop.backend.controller;
 
-import com.togethershop.backend.dto.CouponTemplateDTO;
+
+import org.springframework.http.ResponseEntity;
+import java.util.List;
+import com.togethershop.backend.dto.*;
 import com.togethershop.backend.service.BusinessCouponService;
+import com.togethershop.backend.security.CustomUserDetails; // 커스텀 UserDetails
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -24,13 +27,13 @@ public class BusinessCouponController {
      * @return 쿠폰 템플릿 리스트
      */
     @GetMapping("/{businessId}")
-    public ResponseEntity<List<CouponTemplateDTO>> getBusinessCoupons(
+    public ResponseEntity<List<CouponTemplateDTO>> getBusinessCouponslist(
             @PathVariable Long businessId,
             @RequestParam(value = "limit", required = false) Integer limit) {
         
         log.info("사업자 ID: {} 쿠폰 조회 요청, 제한: {}", businessId, limit);
         
-        List<CouponTemplateDTO> coupons = businessCouponService.getBusinessCoupons(businessId, limit);
+        List<CouponTemplateDTO> coupons = businessCouponService.getBusinessCouponslist(businessId, limit);
         
         log.info("사업자 ID: {} 쿠폰 조회 완료, 개수: {}", businessId, coupons.size());
         
@@ -73,5 +76,31 @@ public class BusinessCouponController {
         log.info("사업자 ID: {} 최근 쿠폰 조회 완료, 개수: {}", businessId, recentCoupons.size());
         
         return ResponseEntity.ok(recentCoupons);
+    @GetMapping
+    public ResponseEntity<BusinessCouponListResponseDTO> getBusinessCoupons(Authentication authentication) {
+        try {
+            CustomUserDetails user = (CustomUserDetails) authentication.getPrincipal();
+            Long businessId = user.getId(); // 숫자로 안전하게 가져오기
+            BusinessCouponListResponseDTO response = businessCouponService.getBusinessCoupons(businessId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching business coupons", e);
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/templates/{templateId}/analysis")
+    public ResponseEntity<CouponAnalysisResponseDTO> getCouponAnalysis(
+            @PathVariable Long templateId,
+            Authentication authentication) { // 임시로 하드코딩
+        try {
+            CustomUserDetails user = (CustomUserDetails) authentication.getPrincipal();
+            Long businessId = user.getId(); // 숫자로 안전하게 가져오기
+            CouponAnalysisResponseDTO analysis = businessCouponService.getCouponAnalysis(businessId, templateId);
+            return ResponseEntity.ok(analysis);
+        } catch (Exception e) {
+            log.error("Error fetching coupon analysis", e);
+            return ResponseEntity.badRequest().build();
+        }
     }
 }
