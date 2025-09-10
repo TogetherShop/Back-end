@@ -82,4 +82,7 @@ public class Business {
 
     @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL)
     private List<Partnership> receivedPartnerships;
+
+    @Column(name = "business_fcm_token")
+    private String businessFcmToken; // FCM 토큰 저장
 }

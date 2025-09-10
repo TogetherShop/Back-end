@@ -27,6 +27,7 @@ public class CustomerCouponService {
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final PartnershipRepository partnershipRepository;
     private final CouponTemplateRepository couponTemplateRepository;
+    private final CustomerNotificationService customerNotificationService;
 
     @Transactional(readOnly = true)
     public List<BusinessWithPartnersCouponsDTO> getAvailableCouponsGrouped(Long customerId) {
@@ -158,7 +159,7 @@ public class CustomerCouponService {
                 .businessCategory(partnerBusiness.getBusinessCategory())
                 .startDate(template.getStartDate())
                 .endDate(template.getEndDate())
-                .description(template.getDiscountValue() + "%" + template.getItem() + " 할인")
+                .description(template.getDiscountValue() + "% " + template.getItem() + " 할인")
                 .build();
     }
 
@@ -214,7 +215,7 @@ public class CustomerCouponService {
                     Business partnerBusiness = businessMap.get(partnerBusinessId);
 
                     // 설명은 기존과 동일하게 할인율+품목 조합으로 생성
-                    String description = template.getDiscountValue() + "%" + template.getItem() + " 할인";
+                    String description = template.getDiscountValue() + "% " + template.getItem() + " 할인";
 
                     return CouponResponseDTO.builder()
                             .couponId(c.getCouponId())
@@ -268,6 +269,12 @@ public class CustomerCouponService {
                 .build();
 
         couponRepository.save(coupon);
+
+        // partnershipId -> businessId -> businessName 조회
+        String couponName = template.getPartnership().getRequester().getBusinessName() + " 에서";
+
+        // 알림 전송
+        customerNotificationService.sendCouponCreatedNotification(customerId, couponName);
 
         // 엔티티 -> DTO 변환
         return CouponResponseDTO.builder()
