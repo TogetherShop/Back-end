@@ -46,4 +46,7 @@ public class Customer {
     @Column(name = "status", length = 20)
     private AccountStatus status;
 
+    @Column(name = "customer_fcm_token")
+    private String customerFcmToken; // FCM 토큰 저장
+
 }

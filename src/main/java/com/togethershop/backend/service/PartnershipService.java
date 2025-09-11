@@ -3,21 +3,24 @@ package com.togethershop.backend.service;
 import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.ChatMessage;
 import com.togethershop.backend.domain.ChatRoom;
+import com.togethershop.backend.domain.Partnership;
 import com.togethershop.backend.dto.*;
-import com.togethershop.backend.repository.ChatMessageRepository;
-import com.togethershop.backend.repository.ChatRoomRepository;
-import com.togethershop.backend.repository.PartnershipRepository;
-import com.togethershop.backend.repository.ShopUserRepository;
+import com.togethershop.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +30,8 @@ public class PartnershipService {
     private final ShopUserRepository userRepo;
     private final ChatMessageRepository messageRepo;
     private final SimpMessagingTemplate messagingTemplate;
-    private final PartnershipRepository partnershipRepository;
+    private final PartnershipRepository partnershipRepo;
+    private final BusinessRepository businessRepo;
 
     /**
      * 협업 요청 생성
@@ -39,6 +43,26 @@ public class PartnershipService {
         Business recipient = userRepo.findById(recipientId)
                 .orElseThrow(() -> new IllegalArgumentException("수신자를 찾을 수 없습니다"));
 
+        // 요청 보내자마자 Partnership 2개 생성
+        LocalDate now = LocalDate.now();
+
+        Partnership p1 = Partnership.builder()
+                .requester(requester)
+                .partner(recipient)
+                .status(PartnershipStatus.REQUESTED)
+                .startDate(now)
+                .build();
+
+        Partnership p2 = Partnership.builder()
+                .requester(recipient)
+                .partner(requester)
+                .status(PartnershipStatus.REQUESTED)
+                .startDate(now)
+                .build();
+
+        partnershipRepo.save(p1);
+        partnershipRepo.save(p2);
+
         // 채팅방 생성
         ChatRoom room = ChatRoom.builder()
                 .roomId(UUID.randomUUID().toString())
@@ -46,22 +70,24 @@ public class PartnershipService {
                 .recipient(recipient)
                 .status(ChatStatus.WAITING)
                 .createdAt(LocalDateTime.now())
+                .partnership(p1) // 방에는 requester 기준 하나만 연결
                 .build();
+
         room = roomRepo.save(room);
 
-        // 메시지 생성 (deliveryStatus 기본값 처리)
+        // 최초 메시지 저장
         ChatMessage chatMessage = ChatMessage.builder()
                 .room(room)
                 .senderId(requester.getId())
                 .receiverBusinessId(recipient.getId())
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content(message)
-                .deliveryStatus(MessageDeliveryStatus.SENT) // 반드시 기본값 넣기
-                .sentAt(LocalDateTime.now())
+                .deliveryStatus(MessageDeliveryStatus.SENT)
+                .sentAt(Instant.now())
+                .partnership(p1)
                 .build();
         messageRepo.save(chatMessage);
 
-        // STOMP 전송
         messagingTemplate.convertAndSend("/topic/room/" + room.getRoomId(),
                 buildPartnershipMessage(chatMessage, ChatStatus.WAITING, null));
 
@@ -76,30 +102,42 @@ public class PartnershipService {
     public void acceptRequest(String roomId, Long shopId) {
         ChatRoom room = roomRepo.findByRoomId(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다"));
-        Business user = userRepo.findById(shopId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
 
-        if (!room.getRecipient().getId().equals(user.getId())) {
+        if (!room.getRecipient().getId().equals(shopId)) {
             throw new AccessDeniedException("요청을 수락할 권한이 없습니다");
         }
 
         room.setStatus(ChatStatus.IN_NEGOTIATION);
         roomRepo.save(room);
 
+        // 파트너십 상태 업데이트
+        Partnership p1 = room.getPartnership(); // requester 기준
+        Partnership p2 = partnershipRepo.findByRequesterAndPartner(p1.getPartner(), p1.getRequester())
+                .orElseThrow(() -> new IllegalArgumentException("반대 파트너십을 찾을 수 없습니다"));
+
+        p1.setStatus(PartnershipStatus.ACCEPTED);
+        p2.setStatus(PartnershipStatus.ACCEPTED);
+
+        partnershipRepo.save(p1);
+        partnershipRepo.save(p2);
+
+        // 시스템 메시지
         ChatMessage sysMessage = ChatMessage.builder()
                 .room(room)
-                .senderId(user.getId())
+                .senderId(shopId)
                 .receiverBusinessId(room.getRequester().getId())
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content("요청이 수락되었습니다")
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
+                .partnership(p1)
                 .build();
         messageRepo.save(sysMessage);
 
         messagingTemplate.convertAndSend("/topic/room/" + roomId,
                 buildPartnershipMessage(sysMessage, ChatStatus.ACCEPTED, null));
     }
+
 
     /**
      * 요청 거절
@@ -115,9 +153,21 @@ public class PartnershipService {
             throw new AccessDeniedException("요청을 거절할 권한이 없습니다");
         }
 
+        // 채팅방 상태 변경
         room.setStatus(ChatStatus.REJECTED);
         roomRepo.save(room);
 
+        // Partnership 상태 변경
+        Partnership p1 = room.getPartnership(); // requester 기준
+        Partnership p2 = partnershipRepo.findByRequesterAndPartner(p1.getPartner(), p1.getRequester())
+                .orElseThrow(() -> new IllegalArgumentException("반대 파트너십을 찾을 수 없습니다"));
+
+        p1.setStatus(PartnershipStatus.REJECTED);
+        p2.setStatus(PartnershipStatus.REJECTED);
+        partnershipRepo.save(p1);
+        partnershipRepo.save(p2);
+
+        // 시스템 메시지
         ChatMessage sysMessage = ChatMessage.builder()
                 .room(room)
                 .senderId(user.getId())
@@ -125,13 +175,15 @@ public class PartnershipService {
                 .type(MessageType.PARTNERSHIP_REQUEST)
                 .content("요청이 거절되었습니다")
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
+                .partnership(p1)
                 .build();
         messageRepo.save(sysMessage);
 
         messagingTemplate.convertAndSend("/topic/room/" + roomId,
                 buildPartnershipMessage(sysMessage, ChatStatus.REJECTED, reason));
     }
+
 
     @Transactional
     public void sendTextMessage(String roomId, Long senderId, String content) {
@@ -146,7 +198,8 @@ public class PartnershipService {
                 .type(MessageType.TEXT)
                 .content(content)
                 .deliveryStatus(MessageDeliveryStatus.SENT)
-                .sentAt(LocalDateTime.now())
+                .sentAt(Instant.now())
+                .partnership(room.getPartnership())
                 .build();
         messageRepo.save(msg);
 
@@ -173,7 +226,7 @@ public class PartnershipService {
         payload.put("reason", reason);
 
         Map<String, Object> stompMessage = new HashMap<>();
-        LocalDateTime createdAt = msg.getSentAt(); // LocalDateTime
+        Instant createdAt = msg.getSentAt(); // LocalDateTime
         long epochMilli = createdAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         stompMessage.put("timestamp", epochMilli);
         stompMessage.put("type", "PARTNERSHIP_REQUEST");
@@ -186,4 +239,19 @@ public class PartnershipService {
     private String getUsernameById(Long id) {
         return userRepo.findById(id).map(Business::getUsername).orElse("UNKNOWN");
     }
+
+    public List<PartnershipDTO> getAllBusinesses(Long currentUserId) {
+        List<Business> businesses = businessRepo.findAll();
+
+        return businesses.stream().map(b -> {
+            boolean partnershipExists = partnershipRepo.existsPartnership(currentUserId, b.getId());
+            return new PartnershipDTO(
+                    b.getId(),
+                    b.getBusinessName(),
+                    b.getBusinessCategory(),
+                    partnershipExists
+            );
+        }).collect(Collectors.toList());
+    }
+
 }

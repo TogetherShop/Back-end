@@ -60,6 +60,10 @@ public class Business {
 
     @Column(name = "collaboration_category")
     private String collaborationCategory;
+
+    @Column(name = "together_index")
+    private Double togetherIndex;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status")
     private VerificationStatus verificationStatus = VerificationStatus.PENDING;
@@ -78,4 +82,7 @@ public class Business {
 
     @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL)
     private List<Partnership> receivedPartnerships;
+
+    @Column(name = "business_fcm_token")
+    private String businessFcmToken; // FCM 토큰 저장
 }

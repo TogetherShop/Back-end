@@ -31,10 +31,14 @@ public class ChatRoom {
     private Business recipient; // 수신자
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status")
     private ChatStatus status = ChatStatus.WAITING;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
-    private Long partnershipId;
 
+    @OneToOne
+    @JoinColumn(name = "partnership_id")
+    private Partnership partnership;
 }
 

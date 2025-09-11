@@ -26,31 +26,17 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http
-//                .csrf(csrf -> csrf.disable())
-//                .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers("/api/auth/**").permitAll().requestMatchers("/api/customer/auth/**").permitAll()
-//                        .requestMatchers("/api/customer/**").authenticated() // 고객 API는 인증 필요
-//                        .requestMatchers("/ws-chat/**").permitAll()
-//                        .anyRequest().authenticated()
-//                )
-//                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-//
-//        return http.build();
-//    }
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/customer/auth/**", "/ws-chat/**").permitAll()
-                        // 매장 API는 인증 필요
-                        .requestMatchers("/api/stores/**").authenticated()
-                        // 고객 API도 인증 필요(현 설정 유지)
-                        .requestMatchers("/api/customer/**").authenticated()
+                        .requestMatchers("/api/auth/**").permitAll().requestMatchers("/api/customer/auth/**").permitAll()
+                        .requestMatchers("/api/customer/**").authenticated() // 고객 API는 인증 필요
+                        .requestMatchers("/api/fcm/**").authenticated() // fcm
+                        .requestMatchers("/api/business/**").authenticated() // 사업자 API는 인증 필요
+                        .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/ws-chat/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(h -> h
