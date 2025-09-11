@@ -33,6 +33,8 @@ public class PartnershipPageController {
                 .businessName(business.getBusinessName())
                 .businessCategory(business.getBusinessCategory())
                 .address(business.getAddress())
+                .latitude(business.getLatitude())
+                .longitude(business.getLongitude())
                 .togetherIndex(business.getTogetherIndex())
                 .profileImageUrl(business.getProfileImageUrl())
                 .description(business.getDescription())
