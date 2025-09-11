@@ -190,21 +190,26 @@ public class CustomerCouponService {
                 .map(Coupon::getTemplateId)
                 .collect(Collectors.toSet());
 
+
         // 3. coupon_template 조회 (partnership 포함, LAZY면 fetch join 또는 별도 조회 필요)
         List<CouponTemplate> templates = couponTemplateRepository.findAllById(templateIds);
         Map<Long, CouponTemplate> templateMap = templates.stream()
                 .collect(Collectors.toMap(CouponTemplate::getId, t -> t));
+        log.info("coupon_template ID 리스트: {}", templateMap);
 
         // 4. partnershipId로 파트너 businessId 조회 (couponTemplate -> partnership -> partnerBusiness)
         Set<Long> partnerBusinessIds = templates.stream()
                 .map(t -> t.getPartnership().getPartner().getId())
                 .collect(Collectors.toSet());
 
+        log.info("파트너 사업장 ID 리스트: {}", partnerBusinessIds);
+
         // 5. partner business 조회
         List<Business> partnerBusinesses = businessRepository.findAllById(partnerBusinessIds);
         Map<Long, Business> businessMap = partnerBusinesses.stream()
                 .collect(Collectors.toMap(Business::getId, b -> b));
 
+        log.info("partner business 조회: {}", partnerBusinesses);
         // 6. DTO 변환
         return coupons.stream()
                 .map(c -> {
@@ -212,6 +217,7 @@ public class CustomerCouponService {
                     if (template == null) return null;
 
                     Long partnerBusinessId = template.getPartnership().getPartner().getId();
+                    log.info("쿠폰 템플릿"+c.getTemplateId()+"의 비즈니스 파트너"+partnerBusinessId);
                     Business partnerBusiness = businessMap.get(partnerBusinessId);
 
                     // 설명은 기존과 동일하게 할인율+품목 조합으로 생성

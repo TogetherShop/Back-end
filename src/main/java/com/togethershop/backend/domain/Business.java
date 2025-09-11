@@ -55,6 +55,9 @@ public class Business {
     @Column(name = "business_hours")
     private String businessHours;
 
+    @Column(name = "main_customer")
+    private String mainCustomer;
+
     private String description;
 
     @Column(name = "profile_image_url")

@@ -32,6 +32,7 @@ public class PartnershipPageController {
                 .businessId(business.getId())
                 .businessName(business.getBusinessName())
                 .businessCategory(business.getBusinessCategory())
+                .businessType(business.getBusinessType())
                 .address(business.getAddress())
                 .latitude(business.getLatitude())
                 .longitude(business.getLongitude())
@@ -39,7 +40,8 @@ public class PartnershipPageController {
                 .profileImageUrl(business.getProfileImageUrl())
                 .description(business.getDescription())
                 .collaborationCategory(business.getCollaborationCategory())
-                .build())
+                    .mainCustomer(business.getMainCustomer())
+                    .build())
             .toList();
 
         return ResponseEntity.ok(partnershipList);
