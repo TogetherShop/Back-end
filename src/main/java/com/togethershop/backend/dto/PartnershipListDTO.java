@@ -13,6 +13,7 @@ public class PartnershipListDTO {
     private Long businessId;
     private String businessName;
     private String businessCategory;
+    private String businessType;
     private String address;
     private Double latitude;
     private Double longitude;
@@ -20,4 +21,5 @@ public class PartnershipListDTO {
     private String profileImageUrl;
     private String description;
     private String collaborationCategory;
+    private String mainCustomer;
 }
