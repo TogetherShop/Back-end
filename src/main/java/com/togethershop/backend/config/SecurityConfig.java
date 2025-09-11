@@ -25,6 +25,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll().requestMatchers("/api/customer/auth/**").permitAll()
                         .requestMatchers("/api/customer/**").authenticated() // 고객 API는 인증 필요
+                        .requestMatchers("/api/business/home-summary-open").permitAll()
                         .requestMatchers("/api/fcm/**").authenticated() // fcm
                         .requestMatchers("/api/business/**").authenticated() // 사업자 API는 인증 필요
                         .requestMatchers("/api/notifications/**").authenticated()
