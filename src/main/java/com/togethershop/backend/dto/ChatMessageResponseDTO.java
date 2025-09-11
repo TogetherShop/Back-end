@@ -3,7 +3,7 @@ package com.togethershop.backend.dto;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Builder
@@ -13,7 +13,7 @@ public class ChatMessageResponseDTO {
     private Long senderId;
     private String senderName;
     private String content;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private Payload payload;
 
     @Getter

@@ -3,17 +3,15 @@ package com.togethershop.backend.domain;
 import com.togethershop.backend.dto.MessageDeliveryStatus;
 import com.togethershop.backend.dto.MessageType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 // ChatMessage.java
 @Entity
 @Table(name = "chat_messages")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -44,11 +42,11 @@ public class ChatMessage {
     @Column(columnDefinition = "TEXT")
     private String content; // 텍스트 or JSON(제안 데이터 요약)
 
-    @Column(name = "sent_at", insertable = false, updatable = false)
-    private LocalDateTime sentAt;
+    @Column(name = "sent_at", nullable = false)
+    private Instant sentAt;
 
     @Column(name = "read_at")
-    private LocalDateTime readAt;
+    private Instant readAt;
 
     // 메시지 전송 상태
     @Enumerated(EnumType.STRING)
