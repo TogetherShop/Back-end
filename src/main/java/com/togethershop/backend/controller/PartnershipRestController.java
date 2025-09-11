@@ -67,6 +67,8 @@ public class PartnershipRestController {
 
         partnershipService.acceptRequest(roomId, userDetails.getUserId());
         log.info("Accepted request for user {}", userDetails.getUsername());
+
+
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "message", "요청이 수락되었습니다."
@@ -272,6 +274,10 @@ public class PartnershipRestController {
                         .currentUserId(userId)
                         .requesterId(room.getRequester().getId())
                         .recipientId(room.getRecipient().getId())
+                        .togetherIndex(otherUser.getTogetherIndex())
+                        .businessType(otherUser.getBusinessType())
+                        .businessCategory(otherUser.getBusinessCategory())
+                        .mainCustomer(otherUser.getMainCustomer())
                         .me(ChatHistoryResponseDTO.UserInfo.builder()
                                 .id(me.getId())
                                 .username(me.getUsername())

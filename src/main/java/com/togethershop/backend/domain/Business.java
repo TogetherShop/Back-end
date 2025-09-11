@@ -45,6 +45,8 @@ public class Business {
     @Column(name = "business_category")
     private String businessCategory;
 
+    @Column(name = "main_customer")
+    private String mainCustomer;
     private String address;
 
     private Double latitude;
