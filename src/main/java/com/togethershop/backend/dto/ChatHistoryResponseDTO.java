@@ -22,8 +22,13 @@ public class ChatHistoryResponseDTO {
         private Long currentUserId;
         private Long requesterId;
         private Long recipientId;
+        private Double togetherIndex;
+        private String businessType;
+        private String businessCategory;
+        private String mainCustomer;
         private UserInfo me;          // 현재 접속자 정보
         private UserInfo otherUser;
+
     }
 
 
