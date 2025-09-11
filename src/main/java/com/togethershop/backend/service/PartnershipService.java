@@ -3,11 +3,10 @@ package com.togethershop.backend.service;
 import com.togethershop.backend.domain.Business;
 import com.togethershop.backend.domain.ChatMessage;
 import com.togethershop.backend.domain.ChatRoom;
-import com.togethershop.backend.dto.ChatStatus;
-import com.togethershop.backend.dto.MessageDeliveryStatus;
-import com.togethershop.backend.dto.MessageType;
+import com.togethershop.backend.dto.*;
 import com.togethershop.backend.repository.ChatMessageRepository;
 import com.togethershop.backend.repository.ChatRoomRepository;
+import com.togethershop.backend.repository.PartnershipRepository;
 import com.togethershop.backend.repository.ShopUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -15,11 +14,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +27,7 @@ public class PartnershipService {
     private final ShopUserRepository userRepo;
     private final ChatMessageRepository messageRepo;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PartnershipRepository partnershipRepository;
 
     /**
      * 협업 요청 생성

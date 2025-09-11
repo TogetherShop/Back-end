@@ -1,8 +1,9 @@
 package com.togethershop.backend.dto;
 
 public enum PartnershipStatus {
-    REQUESTED,
-    ACCEPTED,
+    REQUESTED, // 협업 요청
+    ACCEPTED, // 요청 수락
     REJECTED,
-    TERMINATED
+    IN_NEGOTIATION,
+    COMPLETED // 협의 완료
 }
